@@ -12,6 +12,45 @@ namespace SwissBot.Modules
 {
     public class Commands : ModuleBase<SocketCommandContext>
     {
+        [Command("butter")]
+        public async Task butter(string url)
+        {
+            //add butter link to butter file
+            Uri uriResult;
+            bool result = Uri.TryCreate(url, UriKind.Absolute, out uriResult);
+            if(result)
+            {
+                string curr = File.ReadAllText(Global.ButterFile);
+                File.WriteAllText(ButterFile, curr + url + "\n");
+                ConsoleLog($"User {Context.Message.Author.Username}#{Context.Message.Author.Discriminator} has submitted the image {url}");
+                await Context.Channel.SendMessageAsync("Added to the butter database, to view some butter do `\"butter`. Abuse of this command will not be tolerated");
+            }
+            else { await Context.Channel.SendMessageAsync("That is not a valad URL!"); }
+        }
+        [Command("butter")]
+        public async Task butter()
+        {
+            //add butter link to butter file
+            if(Context.Message.Attachments.Count >= 1)
+            {
+                foreach(var attachment in Context.Message.Attachments)
+                {
+                    var url = attachment.Url;
+                    var filename = attachment.Filename;
+                    await Context.Channel.SendMessageAsync($"Added `{filename}` ({url}) to the butter database!");
+                    string curr = File.ReadAllText(Global.ButterFile);
+                    File.WriteAllText(ButterFile, curr + url + "\n");
+                }
+            }
+            else //get a random butter
+            {
+                Random r = new Random();
+                int max = File.ReadAllLines(ButterFile).Count();
+                int num = r.Next(0, max);
+                string link = File.ReadAllLines(ButterFile)[num];
+                await Context.Channel.SendMessageAsync($"50, 40, 30, 20, 10, **Butter** \n {link}");
+            }
+        }
         [Command("configperms")]
         public async Task configperm(string name, string newValue)
         {

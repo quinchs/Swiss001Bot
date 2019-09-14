@@ -24,6 +24,7 @@ namespace SwissBot
         public static ulong SwissBotDevGuildID { get; set; }
         public static string MessageLogsDir = $"{Environment.CurrentDirectory}\\Messagelogs";
         public static string CommandLogsDir = $"{Environment.CurrentDirectory}\\Commandlogs";
+        public static string ButterFile = $"{Environment.CurrentDirectory}\\Data\\Landings.butter";
         public static ulong LogsChannelID { get; set; }
         public static ulong DebugChanID { get; set; }
         public static ulong TestingCat { get; set; }
