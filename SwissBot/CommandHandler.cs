@@ -38,11 +38,44 @@ namespace SwissBot
 
             _client.UserLeft += UpdateUserCount;
 
+            _client.ReactionAdded += checkSub;
+
             _client.LatencyUpdated += _client_LatencyUpdated;
 
             _client.Ready += Init;
 
             Console.WriteLine("[" + DateTime.Now.TimeOfDay + "] - " + "Services loaded");
+        }
+
+        private async Task checkSub(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
+        {
+            foreach(var item in Global.SubsList)
+            {
+                if(item.botMSG.Embeds.First().Image.Value.Url == arg1.Value.Embeds.First().Image.Value.Url && item.botMSG.Embeds.First().Description == arg1.Value.Embeds.First().Description)
+                {
+                    if(!arg3.User.Value.IsBot) //not a bot
+                    {
+                        if (arg3.Emote.Name == item.checkmark.Name)
+                        {
+                            //good img
+                            string curr = File.ReadAllText(Global.ButterFile);
+                            File.WriteAllText(Global.ButterFile, curr + item.url + "\n");
+                            Global.ConsoleLog($"the image {item.url} has been approved by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}");
+                            await item.orig_msg.Author.SendMessageAsync($"Your butter submission was approved by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator} ({item.url})");
+                            await item.botMSG.DeleteAsync();
+                            Global.SubsList.Remove(item);
+                        }
+                        if (arg3.Emote.Name == item.Xmark.Name)
+                        {
+                            //bad img
+                            Global.ConsoleLog($"the image {item.url} has been Denied by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}", ConsoleColor.Red);
+                            await _client.GetDMChannelAsync(item.orig_msg.Author.Id).Result.SendMessageAsync($"Your butter submission was Denied by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}, if you have any questions contact them ({item.url})");
+                            await item.botMSG.DeleteAsync();
+                            Global.SubsList.Remove(item);
+                        }
+                    }
+                }
+            }
         }
 
         private async Task _client_LatencyUpdated(int arg1, int arg2)

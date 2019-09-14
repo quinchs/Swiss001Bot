@@ -20,12 +20,54 @@ namespace SwissBot.Modules
             bool result = Uri.TryCreate(url, UriKind.Absolute, out uriResult);
             if(result)
             {
-                string curr = File.ReadAllText(Global.ButterFile);
-                File.WriteAllText(ButterFile, curr + url + "\n");
-                ConsoleLog($"User {Context.Message.Author.Username}#{Context.Message.Author.Discriminator} has submitted the image {url}");
-                await Context.Channel.SendMessageAsync("Added to the butter database, to view some butter do `\"butter`. Abuse of this command will not be tolerated");
+                UnnaprovedSubs us = new UnnaprovedSubs();
+                us.orig_msg = Context.Message;
+                us.url = url;
+                
+                await Context.Channel.SendMessageAsync($"Thank you, {Context.Message.Author.Mention} for the submission, we will get back to you!");
+                EmbedBuilder eb = new EmbedBuilder();
+                eb.ImageUrl = us.url;
+                eb.Title = "**Butter Submission**";
+                eb.Description = $"This image was submitted by {us.orig_msg.Author.Mention}";
+                eb.Color = Color.Orange;
+                var msg = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync("", false, eb.Build());
+                await msg.AddReactionAsync(new Emoji("✅"));
+                await msg.AddReactionAsync(new Emoji("❌"));
+                us.checkmark = new Emoji("✅");
+                us.Xmark = new Emoji("❌");
+                us.botMSG = msg;
+                SubsList.Add(us);
+                //string curr = File.ReadAllText(Global.ButterFile);
+                //File.WriteAllText(ButterFile, curr + url + "\n");
+                //ConsoleLog($"User {Context.Message.Author.Username}#{Context.Message.Author.Discriminator} has submitted the image {url}");
+                //await Context.Channel.SendMessageAsync("Added to the butter database, to view some butter do `\"butter`. Abuse of this command will not be tolerated");
             }
             else { await Context.Channel.SendMessageAsync("That is not a valad URL!"); }
+        }
+        [Command("purge")]
+        public async Task purge(uint amount)
+        {
+            var r = Context.Guild.GetUser(Context.Message.Author.Id).Roles;
+            var adminrolepos = Context.Guild.Roles.FirstOrDefault(x => x.Id == Global.ModeratorRoleID).Position;
+            var rolepos = r.FirstOrDefault(x => x.Position >= adminrolepos);
+            if (rolepos != null)
+            {
+                var messages = await this.Context.Channel.GetMessagesAsync((int)amount + 1).FlattenAsync();
+
+                foreach (var message in messages)
+                {
+                    await message.DeleteAsync();
+                }
+                const int delay = 5000;
+                var m = await this.ReplyAsync($"Purge completed. _This message will be deleted in {delay / 1000} seconds._");
+                await Task.Delay(delay);
+                await m.DeleteAsync();
+            }
+            else
+            {
+                await Context.Channel.SendMessageAsync("You do not have permission to use this command!");
+            }
+
         }
         [Command("butter")]
         public async Task butter()
@@ -35,11 +77,23 @@ namespace SwissBot.Modules
             {
                 foreach(var attachment in Context.Message.Attachments)
                 {
-                    var url = attachment.Url;
-                    var filename = attachment.Filename;
-                    await Context.Channel.SendMessageAsync($"Added `{filename}` ({url}) to the butter database!");
-                    string curr = File.ReadAllText(Global.ButterFile);
-                    File.WriteAllText(ButterFile, curr + url + "\n");
+                    UnnaprovedSubs us = new UnnaprovedSubs();
+                    us.orig_msg = Context.Message;
+                    us.url = attachment.Url;
+
+                    await Context.Channel.SendMessageAsync($"Thank you, {Context.Message.Author.Mention} for the submission, we will get back to you!");
+                    EmbedBuilder eb = new EmbedBuilder();
+                    eb.ImageUrl = us.url;
+                    eb.Title = "**Butter Submission**";
+                    eb.Description = $"This image was submitted by {us.orig_msg.Author.Mention}";
+                    eb.Color = Color.Orange;
+                    var msg = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync("", false, eb.Build());
+                    us.botMSG = msg;
+                    await msg.AddReactionAsync(new Emoji("✓"));
+                    await msg.AddReactionAsync(new Emoji("❌"));
+                    us.checkmark = new Emoji("✓");
+                    us.Xmark = new Emoji("❌");
+                    SubsList.Add(us);
                 }
             }
             else //get a random butter
@@ -395,7 +449,7 @@ namespace SwissBot.Modules
                         Context.Client.SetGameAsync(iValue, null, ActivityType.Listening);
                         break;
                     case "Preflix":
-                        data.Preflix = iName.ToCharArray()[0];
+                        data.Preflix = iValue.ToCharArray()[0];
                         break;
                     case "SwissGuildID":
                         data.SwissGuildID = Convert.ToUInt64(iValue);

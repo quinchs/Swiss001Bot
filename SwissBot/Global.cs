@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.IO;
+using Discord.Rest;
+using Discord;
 
 namespace SwissBot
 {
@@ -27,12 +29,15 @@ namespace SwissBot
         public static string ButterFile = $"{Environment.CurrentDirectory}\\Data\\Landings.butter";
         public static ulong LogsChannelID { get; set; }
         public static ulong DebugChanID { get; set; }
+        public static List<UnnaprovedSubs> SubsList = new List<UnnaprovedSubs>();
         public static ulong TestingCat { get; set; }
         public static Dictionary<string, bool> ConfigSettings { get; set; }
         public static ulong StatsChanID { get; set; }
         public static ulong WelcomeMessageChanID { get; set; }
         public static string WelcomeMessage { get; set; }
+        public static ulong SubmissionChanID { get; set; }
         public static string WelcomeMessageURL { get; set; }
+        public static ulong ModeratorRoleID { get; set; }
         internal static Dictionary<string, string> jsonItemsList { get; private set; }
         internal static Dictionary<string, string> JsonItemsListDevOps { get; private set; }
 
@@ -63,12 +68,13 @@ namespace SwissBot
             SwissBotDevGuildID = data.SwissTestingGuildID;
             LogsChannelID = data.LogsChannelID;
             DebugChanID = data.DebugChanID;
+            SubmissionChanID = data.SubmissionChanID;
             TestingCat = data.TestingCatigoryID;
-            
+            ModeratorRoleID = data.ModeratorRoleID;
         }
         public static void SaveConfig(JsonItems newData)
         {
-            string jsonS = JsonConvert.SerializeObject(newData);
+            string jsonS = JsonConvert.SerializeObject(newData, Formatting.Indented);
             ConsoleLog("Saved New config items. here is the new JSON \n " + jsonS + "\n Saving...", ConsoleColor.DarkYellow);
             File.WriteAllText(ConfigPath, jsonS);
         }
@@ -90,9 +96,11 @@ namespace SwissBot
             public ulong LogsChannelID { get; set; }
             public ulong DebugChanID { get; set; }
             public ulong StatsChanID { get; set; }
+            public ulong SubmissionChanID { get; set; }
             public ulong WelcomeMessageChanID { get; set; }
             public string WelcomeMessage { get; set; }
             public string WelcomeMessageURL { get; set; }
+            public ulong ModeratorRoleID { get; set; }
         }
         public static void ConsoleLog(string ConsoleMessage, ConsoleColor FColor = ConsoleColor.Green, ConsoleColor BColor = ConsoleColor.Black)
         {
@@ -101,6 +109,14 @@ namespace SwissBot
             Console.WriteLine("[" + DateTime.Now.TimeOfDay + "] - " + ConsoleMessage);
             Console.ForegroundColor = ConsoleColor.Green;
             Console.BackgroundColor = ConsoleColor.Black;
+        }
+        public struct UnnaprovedSubs
+        {
+            public SocketUserMessage orig_msg { get; set; }
+            public RestUserMessage botMSG { get; set; }
+            public string url { get; set; }
+            public Emoji checkmark { get; set; }
+            public Emoji Xmark { get; set; }
         }
     }
 }
