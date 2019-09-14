@@ -34,16 +34,54 @@ namespace SwissBot
 
             _client.UserJoined += UpdateUserCount;
 
+            _client.UserJoined += WelcomeMessage;
+
             _client.UserLeft += UpdateUserCount;
+
+            _client.LatencyUpdated += _client_LatencyUpdated;
 
             _client.Ready += Init;
 
             Console.WriteLine("[" + DateTime.Now.TimeOfDay + "] - " + "Services loaded");
         }
 
+        private async Task _client_LatencyUpdated(int arg1, int arg2)
+        {
+            await Init();
+        }
+
+        private async Task WelcomeMessage(SocketGuildUser arg)
+        {
+            string welcomeMessage = WelcomeMessageBuilder(Global.WelcomeMessage, arg);
+
+            EmbedBuilder eb = new EmbedBuilder()
+            {
+                Title = $"***Welcome to Swiss001's Discord server!***",
+                Footer = new EmbedFooterBuilder()
+                {
+                    IconUrl = arg.GetAvatarUrl(),
+                    Text = $"{arg.Username}#{arg.Discriminator}"
+                },
+                Description = welcomeMessage,
+                ImageUrl = Global.WelcomeMessageURL,
+                Color = Color.Green
+            };
+            await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.WelcomeMessageChanID).SendMessageAsync("", false, eb.Build());
+            Global.ConsoleLog($"WelcomeMessage for {arg.Username}#{arg.Discriminator}", ConsoleColor.Blue);
+        }
+        internal static string WelcomeMessageBuilder(string orig, SocketGuildUser user)
+        {
+            if (orig.Contains("(USER)"))
+                orig = orig.Replace("(USER)", user.Mention);
+            if (orig.Contains("(USERCOUNT)"))
+                orig = orig.Replace("(USERCOUNT)", Global.UserCount.ToString());
+            return orig;
+        }
+
         private async Task Init()
         {
             Global.ConsoleLog("Starting Init... \n\n Updating UserCounts...", ConsoleColor.DarkCyan);
+            Global.UserCount = _client.GetGuild(Global.SwissGuildId).Users.Count;
             await UpdateUserCount(null);
             Global.ConsoleLog("Finnished Init!", ConsoleColor.Black, ConsoleColor.DarkGreen);
         }
@@ -57,6 +95,7 @@ namespace SwissBot
                 if (!user.IsBot)
                     usercount++;
             }
+            Global.UserCount = usercount;
             Console.WriteLine($"Ucount {usercount}, usersSCount{users.Count}");
             await _client.GetGuild(Global.SwissGuildId).GetVoiceChannel(Global.StatsChanID).ModifyAsync(x => 
             {

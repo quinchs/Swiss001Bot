@@ -12,6 +12,82 @@ namespace SwissBot.Modules
 {
     public class Commands : ModuleBase<SocketCommandContext>
     {
+        [Command("configperms")]
+        public async Task configperm(string name, string newValue)
+        {
+            if(Context.Guild.Id == Global.SwissBotDevGuildID)
+            {
+                if(Global.ConfigSettings.Keys.Contains(name))
+                {
+                    bool perm = true ? newValue == "true" : false;
+                    Global.ConfigSettings.Remove(name);
+                    ConfigSettings.Add(name, perm);
+                    EmbedBuilder eb = new EmbedBuilder();
+                    eb.Title = "**Updated Config**";
+                    eb.Footer = new EmbedFooterBuilder();
+                    eb.Footer.IconUrl = Context.Client.CurrentUser.GetAvatarUrl();
+                    eb.Footer.Text = "Command Autogen";
+                    eb.Color = Color.Green;
+                    eb.Description = "Updated the Config Permissions, Here is the new Config Permissions";
+                    string items = "";
+                    foreach (var item in ConfigSettings) 
+                        items += $"```json\n \"{item.Key}\" : \"{item.Value}\"```\n";
+                    eb.Description += $"\n{items}";
+                    await Context.Channel.SendMessageAsync("", false, eb.Build());
+                }
+            }
+        }
+        [Command("configperms")]
+        public async Task configperm(string name)
+        {
+            if (Context.Guild.Id == Global.SwissBotDevGuildID)
+            {
+                if (name == "list")
+                {
+                    string list = "";
+                    foreach (var item in ConfigSettings)
+                        list += $"```json\n \"{item.Key}\" : \"{item.Value}\"```\n";
+                    EmbedBuilder eb = new EmbedBuilder()
+                    {
+                        Title = "**Config Permission List**",
+                        Description = $"**here is the config list**\n {list}",
+                        Color = Color.Green,
+                        Footer = new EmbedFooterBuilder()
+                        {
+                            IconUrl = Context.Client.CurrentUser.GetAvatarUrl(),
+                            Text = "Command Autogen"
+                        },
+                    };
+                    await Context.Channel.SendMessageAsync("", false, eb.Build());
+                }
+                else
+                    await Context.Channel.SendMessageAsync($"Not a valad argument, please do `{Global.Preflix}configperms list` do view the config items, to change one type `{Global.Preflix}configperms (ITEM NAME) (VALUE)`");
+            }
+        }
+        [Command("welcome")]
+        public async Task welcome()
+        {
+            if(Context.Guild.GetCategoryChannel(Global.TestingCat).Channels.Contains(Context.Guild.GetTextChannel(Context.Channel.Id)))
+            {
+                var arg = Context.Guild.GetUser(Context.Message.Author.Id);
+                string welcomeMessage = CommandHandler.WelcomeMessageBuilder(Global.WelcomeMessage, arg);
+
+                EmbedBuilder eb = new EmbedBuilder()
+                {
+                    Title = $"***Welcome to Swiss001's Discord server!***",
+                    Footer = new EmbedFooterBuilder()
+                    {
+                        IconUrl = arg.GetAvatarUrl(),
+                        Text = $"{arg.Username}#{arg.Discriminator}"
+                    },
+                    Description = welcomeMessage,
+                    ImageUrl = Global.WelcomeMessageURL,
+                    Color = Color.Green
+                };
+                await Context.Channel.SendMessageAsync("", false, eb.Build());
+                Global.ConsoleLog($"WelcomeMessage for {arg.Username}#{arg.Discriminator}", ConsoleColor.Blue);
+            }
+        }
         [Command("commandlogs")]
         public async Task logs(string name)
         {
@@ -231,7 +307,7 @@ namespace SwissBot.Modules
         {
             if (configItem == "list")
             {
-                if (Context.Channel.Id == Global.SwissBotDevGuildID)
+                if (Context.Guild.Id == Global.SwissBotDevGuildID)
                 {
                     EmbedBuilder b = new EmbedBuilder();
                     b.Footer = new EmbedFooterBuilder();
@@ -246,13 +322,14 @@ namespace SwissBot.Modules
                 }
                 else
                 {
+                    
                     if (Context.Guild.GetCategoryChannel(Global.TestingCat).Channels.Contains(Context.Guild.GetTextChannel(Context.Channel.Id)))
                     {
                         EmbedBuilder b = new EmbedBuilder();
                         b.Footer = new EmbedFooterBuilder();
                         b.Footer.Text = "**Admin Config**";
                         b.Title = "Admin Config List";
-                        string list = "**Here is the current config file** \n";
+                        string list = "**Here is the current config file, not all items are here, if you wish to view more items please contact Thomas or Swiss, because they control the config items you can modify!** \n";
                         string itemsL = "";
                         foreach (var item in Global.jsonItemsList) { itemsL += $"```json\n \"{item.Key}\" : \"{item.Value}\"```\n"; }
                         if(itemsL == "") { list = "**Sorry but there is nothing here or you do not have permission to change anything yet :/**"; }
@@ -288,7 +365,7 @@ namespace SwissBot.Modules
                         data.SwissTestingGuildID = Convert.ToUInt64(iValue);
                         break;
                     case "TestingCatigory":
-                        data.TestingCatigory = Convert.ToUInt64(iValue);
+                        data.TestingCatigoryID = Convert.ToUInt64(iValue);
                         break;
                     case "DeveloperRoleId":
                         data.DeveloperRoleId = Convert.ToUInt64(iValue);

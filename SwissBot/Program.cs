@@ -31,7 +31,7 @@ namespace SwissBot
                 AlwaysDownloadUsers = true,
                 MessageCacheSize = 100
             });
-            //_client.Ready += Timer.Clock.StartTimer;
+            
 
             _client.Log += Log;
 
