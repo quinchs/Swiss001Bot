@@ -49,8 +49,14 @@ namespace SwissBot
 
         private async Task checkSub(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
         {
-            foreach(var item in Global.SubsList)
+            foreach (var item in Global.SubsList)
             {
+                if (!arg1.HasValue)
+                {
+                    Global.ConsoleLog("Error, Reaction Message doesnt exist, Deleting...", ConsoleColor.Red);
+                    await arg2.SendMessageAsync("**Error** that message was null and cannot be processed. to manualy aprove it copy the image link and type `*butter (LINK)` in this channel, Sorry!");
+                    return;
+                }
                 if(item.botMSG.Embeds.First().Image.Value.Url == arg1.Value.Embeds.First().Image.Value.Url && item.botMSG.Embeds.First().Description == arg1.Value.Embeds.First().Description)
                 {
                     if(!arg3.User.Value.IsBot) //not a bot
@@ -59,7 +65,7 @@ namespace SwissBot
                         {
                             //good img
                             string curr = File.ReadAllText(Global.ButterFile);
-                            File.WriteAllText(Global.ButterFile, curr + item.url + "\n");
+                            File.WriteAllText(Global.ButterFile, curr + "\n" + item.url);
                             Global.ConsoleLog($"the image {item.url} has been approved by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}");
                             await item.orig_msg.Author.SendMessageAsync($"Your butter submission was approved by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator} ({item.url})");
                             await item.botMSG.DeleteAsync();
@@ -80,7 +86,7 @@ namespace SwissBot
 
         private async Task _client_LatencyUpdated(int arg1, int arg2)
         {
-            await Init();
+            await UpdateUserCount(null);
         }
 
         private async Task WelcomeMessage(SocketGuildUser arg)
@@ -96,7 +102,7 @@ namespace SwissBot
                     Text = $"{arg.Username}#{arg.Discriminator}"
                 },
                 Description = welcomeMessage,
-                ImageUrl = Global.WelcomeMessageURL,
+                ThumbnailUrl = Global.WelcomeMessageURL,
                 Color = Color.Green
             };
             await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.WelcomeMessageChanID).SendMessageAsync("", false, eb.Build());
@@ -105,7 +111,8 @@ namespace SwissBot
         internal static string WelcomeMessageBuilder(string orig, SocketGuildUser user)
         {
             if (orig.Contains("(USER)"))
-                orig = orig.Replace("(USER)", user.Mention);
+                orig = orig.Replace("(USER)", $"<@{user.Id}>");
+
             if (orig.Contains("(USERCOUNT)"))
                 orig = orig.Replace("(USERCOUNT)", Global.UserCount.ToString());
             return orig;
@@ -116,9 +123,33 @@ namespace SwissBot
             Global.ConsoleLog("Starting Init... \n\n Updating UserCounts...", ConsoleColor.DarkCyan);
             Global.UserCount = _client.GetGuild(Global.SwissGuildId).Users.Count;
             await UpdateUserCount(null);
+            await UserSubCashing();
             Global.ConsoleLog("Finnished Init!", ConsoleColor.Black, ConsoleColor.DarkGreen);
         }
+        private async Task UserSubCashing()
+        {
+            var messages = await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.SubmissionChanID).GetMessagesAsync().FlattenAsync();
 
+            foreach (var message in messages)
+            {
+                if(message.Embeds.Count >= 1)
+                {
+                    if(message.Embeds.First().Description.Contains("This image was submitted by"))
+                    {
+
+                        Global.UnnaprovedSubs ua = new Global.UnnaprovedSubs()
+                        {
+                            botMSG = message,
+                            checkmark = new Emoji("✓"),
+                            Xmark = new Emoji("❌"),
+                            orig_msg = null,
+                            url = message.Embeds.First().Image.Value.Url
+                        };
+                        Global.SubsList.Add(ua);
+                    }
+                }
+            }
+        }
         private async Task UpdateUserCount(SocketGuildUser arg)
         {
             var users = _client.GetGuild(Global.SwissGuildId).Users;

@@ -15,6 +15,7 @@ namespace SwissBot
     {
         public static char Preflix { get; set; }
         private static string ConfigPath = $"{Environment.CurrentDirectory}\\Data\\Config.json";
+        private static string cMSGPath = $"{Environment.CurrentDirectory}\\Data\\CashedMSG.MSG";
         private static string ConfigSettingsPath = $"{Environment.CurrentDirectory}\\Data\\ConfigPerms.json";
         public static string Status { get; set; }
         public static string Token { get; set; }
@@ -72,11 +73,32 @@ namespace SwissBot
             TestingCat = data.TestingCatigoryID;
             ModeratorRoleID = data.ModeratorRoleID;
         }
+        public static void SaveConfigPerms(Dictionary<string, bool> nConfigPerm)
+        {
+            string json = JsonConvert.SerializeObject(nConfigPerm, Formatting.Indented);
+            File.WriteAllText(ConfigSettingsPath, json);
+            ConsoleLog("Saved New configPerm items. here is the new JSON \n " + json + "\n Saving...", ConsoleColor.Black, ConsoleColor.DarkYellow);
+            ReadConfig();
+        }
+        public static List<string> getUnvertCash()
+        {
+            return File.ReadAllLines(cMSGPath).ToList();
+        }
+        public static void saveUnvertCash(List<string> newDat)
+        {
+            string nw = "";
+            foreach (var id in newDat)
+                nw += $"{id}\n";
+            File.WriteAllText(cMSGPath, nw);
+        }
         public static void SaveConfig(JsonItems newData)
         {
             string jsonS = JsonConvert.SerializeObject(newData, Formatting.Indented);
-            ConsoleLog("Saved New config items. here is the new JSON \n " + jsonS + "\n Saving...", ConsoleColor.DarkYellow);
+            newData.Token = "N#########################";
+            string conJson = JsonConvert.SerializeObject(newData, Formatting.Indented);
             File.WriteAllText(ConfigPath, jsonS);
+            ConsoleLog("Saved New config items. here is the new JSON \n " + conJson + "\n Saving...", ConsoleColor.DarkYellow);
+            ReadConfig();
         }
         public static void SaveConfig(Dictionary<string, bool> newPerms)
         {
@@ -112,8 +134,8 @@ namespace SwissBot
         }
         public struct UnnaprovedSubs
         {
-            public SocketUserMessage orig_msg { get; set; }
-            public RestUserMessage botMSG { get; set; }
+            public IMessage orig_msg { get; set; }
+            public IMessage botMSG { get; set; }
             public string url { get; set; }
             public Emoji checkmark { get; set; }
             public Emoji Xmark { get; set; }

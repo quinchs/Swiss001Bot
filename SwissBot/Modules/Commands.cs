@@ -12,6 +12,28 @@ namespace SwissBot.Modules
 {
     public class Commands : ModuleBase<SocketCommandContext>
     {
+        [Command("help")]
+        public async Task help()
+        {
+            EmbedBuilder eb = new EmbedBuilder()
+            {
+                Title = "***SwissBot Help***",
+                Color = Color.Green,
+                Description = "These are the following commands for SwissBot!\n\n" +
+                "**\"**modify**\n**Parameters** - ```\"modify (ITEMNAME) (NEWVALUE)```\n use `\"modify list` to view the `.config` file\n\n" +
+                "**\"welcome**\n Use this command to test the welcome message\n\n" +
+                "**\"commandlogs**\n**Parameters** - ```\"commandlogs (LOG_NAME)```\n use `\"commandlogs list` to view all command logs\n\n" +
+                "**\"messagelogs**\n**Parameters** - ```\"messagelogs (LOG_NAME)```\n use `\"messagelogs list` to view all message logs\n\n" +
+                "**\"help** \n View this help message :D",
+                Footer = new EmbedFooterBuilder()
+                {
+                    IconUrl = Context.Client.CurrentUser.GetAvatarUrl(),
+                    Text = "Help Autogen"
+                },
+            };
+            await Context.Channel.SendMessageAsync("", false, eb.Build());
+        }
+
         [Command("butter")]
         public async Task butter(string url)
         {
@@ -20,27 +42,41 @@ namespace SwissBot.Modules
             bool result = Uri.TryCreate(url, UriKind.Absolute, out uriResult);
             if(result)
             {
-                UnnaprovedSubs us = new UnnaprovedSubs();
-                us.orig_msg = Context.Message;
-                us.url = url;
+                if(Context.Channel.Id == Global.SubmissionChanID)
+                {
+                    string curr = File.ReadAllText(Global.ButterFile);
+                    File.WriteAllText(ButterFile, curr + url + "\n");
+                    ConsoleLog($"User {Context.Message.Author.Username}#{Context.Message.Author.Discriminator} has submitted the image {url}");
+                    var msg = await Context.Channel.SendMessageAsync($"Added {url} to the butter database!");
+                    await Context.Message.DeleteAsync();
+                    await Task.Delay(5000);
+                    msg.DeleteAsync();
+                }
+                else
+                {
+                    UnnaprovedSubs us = new UnnaprovedSubs();
+                    us.orig_msg = Context.Message;
+                    us.url = url;
+
+                    await Context.Channel.SendMessageAsync($"Thank you, {Context.Message.Author.Mention} for the submission, we will get back to you!");
+                    EmbedBuilder eb = new EmbedBuilder();
+                    eb.ImageUrl = us.url;
+                    eb.Title = "**Butter Submission**";
+                    eb.Description = $"This image was submitted by {us.orig_msg.Author.Mention}";
+                    eb.Color = Color.Orange;
+                    var msg = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync("", false, eb.Build());
+                    await msg.AddReactionAsync(new Emoji("✅"));
+                    await msg.AddReactionAsync(new Emoji("❌"));
+                    us.checkmark = new Emoji("✅");
+                    us.Xmark = new Emoji("❌");
+                    us.botMSG = msg;
+                    SubsList.Add(us);
+                    var curr = getUnvertCash();
+                    curr.Add(msg.Id.ToString());
+                    saveUnvertCash(curr);
+                }
                 
-                await Context.Channel.SendMessageAsync($"Thank you, {Context.Message.Author.Mention} for the submission, we will get back to you!");
-                EmbedBuilder eb = new EmbedBuilder();
-                eb.ImageUrl = us.url;
-                eb.Title = "**Butter Submission**";
-                eb.Description = $"This image was submitted by {us.orig_msg.Author.Mention}";
-                eb.Color = Color.Orange;
-                var msg = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync("", false, eb.Build());
-                await msg.AddReactionAsync(new Emoji("✅"));
-                await msg.AddReactionAsync(new Emoji("❌"));
-                us.checkmark = new Emoji("✅");
-                us.Xmark = new Emoji("❌");
-                us.botMSG = msg;
-                SubsList.Add(us);
-                //string curr = File.ReadAllText(Global.ButterFile);
-                //File.WriteAllText(ButterFile, curr + url + "\n");
-                //ConsoleLog($"User {Context.Message.Author.Username}#{Context.Message.Author.Discriminator} has submitted the image {url}");
-                //await Context.Channel.SendMessageAsync("Added to the butter database, to view some butter do `\"butter`. Abuse of this command will not be tolerated");
+                
             }
             else { await Context.Channel.SendMessageAsync("That is not a valad URL!"); }
         }
@@ -50,10 +86,9 @@ namespace SwissBot.Modules
             var r = Context.Guild.GetUser(Context.Message.Author.Id).Roles;
             var adminrolepos = Context.Guild.Roles.FirstOrDefault(x => x.Id == Global.ModeratorRoleID).Position;
             var rolepos = r.FirstOrDefault(x => x.Position >= adminrolepos);
-            if (rolepos != null)
+            if (rolepos != null || r.Contains(Context.Guild.Roles.FirstOrDefault(x=>x.Id == 622156934778454016)))
             {
                 var messages = await this.Context.Channel.GetMessagesAsync((int)amount + 1).FlattenAsync();
-
                 foreach (var message in messages)
                 {
                     await message.DeleteAsync();
@@ -67,7 +102,6 @@ namespace SwissBot.Modules
             {
                 await Context.Channel.SendMessageAsync("You do not have permission to use this command!");
             }
-
         }
         [Command("butter")]
         public async Task butter()
@@ -126,6 +160,7 @@ namespace SwissBot.Modules
                     foreach (var item in ConfigSettings) 
                         items += $"```json\n \"{item.Key}\" : \"{item.Value}\"```\n";
                     eb.Description += $"\n{items}";
+                    Global.SaveConfigPerms(ConfigSettings);
                     await Context.Channel.SendMessageAsync("", false, eb.Build());
                 }
             }
@@ -174,7 +209,7 @@ namespace SwissBot.Modules
                         Text = $"{arg.Username}#{arg.Discriminator}"
                     },
                     Description = welcomeMessage,
-                    ImageUrl = Global.WelcomeMessageURL,
+                    ThumbnailUrl = Global.WelcomeMessageURL,
                     Color = Color.Green
                 };
                 await Context.Channel.SendMessageAsync("", false, eb.Build());
@@ -468,6 +503,24 @@ namespace SwissBot.Modules
                         break;
                     case "DebugChanID":
                         data.DebugChanID = Convert.ToUInt64(iValue);
+                        break;
+                    case "SubmissionChanID":
+                        data.SubmissionChanID = Convert.ToUInt64(iValue);
+                        break;
+                    case "WelcomeMessageChanID":
+                        data.WelcomeMessageChanID = Convert.ToUInt64(iValue);
+                        break;
+                    case "ModeratorRoleID":
+                        data.ModeratorRoleID = Convert.ToUInt64(iValue);
+                        break;
+                    case "WelcomeMessage":
+                        data.WelcomeMessage = (iValue);
+                        break;
+                    case "WelcomeMessageURL":
+                        data.WelcomeMessageURL = (iValue);
+                        break;
+                    case "StatsChanID":
+                        data.StatsChanID = Convert.ToUInt64(iValue);
                         break;
                 }
                 return data;

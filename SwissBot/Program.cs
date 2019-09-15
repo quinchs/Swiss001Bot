@@ -29,14 +29,12 @@ namespace SwissBot
             {
                 LogLevel = LogSeverity.Debug,
                 AlwaysDownloadUsers = true,
-                MessageCacheSize = 100
+                MessageCacheSize = 99999,
             });
             
 
             _client.Log += Log;
-
-
-
+            
             await _client.LoginAsync(TokenType.Bot, Global.Token);
 
             await _client.StartAsync();
