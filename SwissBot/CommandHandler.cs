@@ -20,7 +20,7 @@ namespace SwissBot
         {
             _client = client;
 
-            _client.SetGameAsync(Global.Status, null, ActivityType.Playing);
+            _client.SetGameAsync(Global.Status, "https://github.com/quinchs/Swiss001Bot", ActivityType.Streaming);
 
             _client.SetStatusAsync(UserStatus.Online);
 
@@ -38,7 +38,7 @@ namespace SwissBot
 
             _client.UserLeft += UpdateUserCount;
 
-            _client.ReactionAdded += checkSub;
+            _client.ReactionAdded += ReactionHandler; 
 
             _client.LatencyUpdated += _client_LatencyUpdated;
 
@@ -47,37 +47,165 @@ namespace SwissBot
             Console.WriteLine("[" + DateTime.Now.TimeOfDay + "] - " + "Services loaded");
         }
 
+        private async Task ReactionHandler(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
+        {
+            try
+            {
+                await CheckVerification(arg1, arg2, arg3);
+                await checkSub(arg1, arg2, arg3);
+            }
+            catch(Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.White;
+            }
+        }
+
+        private async Task CheckVerification(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
+        {
+            if(arg2.Id == Global.VerificationChanID)
+            {
+                var emote = new Emoji("✅");
+                if(arg3.Emote.Name == emote.Name)
+                {
+                    var user = _client.GetGuild(Global.SwissGuildId).GetUser(arg3.UserId);
+                    var unVertRole = _client.GetGuild(Global.SwissGuildId).Roles.FirstOrDefault(x => x.Id == Global.UnverifiedRoleID);
+                    if (user.Roles.Contains(unVertRole))
+                    {
+                        var userRole = _client.GetGuild(Global.SwissGuildId).Roles.FirstOrDefault(x => x.Id == Global.MemberRoleID);
+                        await user.AddRoleAsync(userRole);
+                        Console.WriteLine($"Verified user {user.Username}#{user.Discriminator}");
+                        EmbedBuilder eb2 = new EmbedBuilder()
+                        {
+                            Title = $"Verified {user.Mention}",
+                            Color = Color.Green,
+                            Footer = new EmbedFooterBuilder()
+                            {
+                                IconUrl = user.GetAvatarUrl(),
+                                Text = $"{user.Username}#{user.Discriminator}"
+                            },
+                        };
+                        var chan = _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.VerificationLogChanID);
+                        await chan.SendMessageAsync("", false, eb2.Build());
+                        await user.RemoveRoleAsync(unVertRole);
+                        string welcomeMessage = WelcomeMessageBuilder(Global.WelcomeMessage, user);
+                        EmbedBuilder eb = new EmbedBuilder()
+                        {
+                            Title = $"***Welcome to Swiss001's Discord server!***",
+                            Footer = new EmbedFooterBuilder()
+                            {
+                                IconUrl = user.GetAvatarUrl(),
+                                Text = $"{user.Username}#{user.Discriminator}"
+                            },
+                            Description = welcomeMessage,
+                            ThumbnailUrl = Global.WelcomeMessageURL,
+                            Color = Color.Green
+                        };
+                        await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.WelcomeMessageChanID).SendMessageAsync("", false, eb.Build());
+                        Global.ConsoleLog($"WelcomeMessage for {user.Username}#{user.Discriminator}", ConsoleColor.Blue);
+                    }
+                }
+            }
+        }
+
         private async Task checkSub(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
         {
-            foreach (var item in Global.SubsList)
+            if(arg2.Id == Global.SubmissionChanID)
             {
-                if (!arg1.HasValue)
+                foreach (var item in Global.SubsList)
                 {
-                    Global.ConsoleLog("Error, Reaction Message doesnt exist, Deleting...", ConsoleColor.Red);
-                    await arg2.SendMessageAsync("**Error** that message was null and cannot be processed. to manualy aprove it copy the image link and type `*butter (LINK)` in this channel, Sorry!");
-                    return;
-                }
-                if(item.botMSG.Embeds.First().Image.Value.Url == arg1.Value.Embeds.First().Image.Value.Url && item.botMSG.Embeds.First().Description == arg1.Value.Embeds.First().Description)
-                {
-                    if(!arg3.User.Value.IsBot) //not a bot
+                    if (!arg1.HasValue)
                     {
-                        if (arg3.Emote.Name == item.checkmark.Name)
+                        Global.ConsoleLog("Error, Reaction Message doesnt exist, Using ID to get message", ConsoleColor.Red);
+
+                        var msg = _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.SubmissionChanID).GetMessageAsync(arg3.MessageId).Result;
+                        if (item.botMSG.Embeds.First().Image.Value.Url == msg.Embeds.First().Image.Value.Url && item.botMSG.Embeds.First().Description == msg.Embeds.First().Description)
                         {
-                            //good img
-                            string curr = File.ReadAllText(Global.ButterFile);
-                            File.WriteAllText(Global.ButterFile, curr + "\n" + item.url);
-                            Global.ConsoleLog($"the image {item.url} has been approved by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}");
-                            await item.orig_msg.Author.SendMessageAsync($"Your butter submission was approved by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator} ({item.url})");
-                            await item.botMSG.DeleteAsync();
-                            Global.SubsList.Remove(item);
+                            if (!arg3.User.Value.IsBot) //not a bot
+                            {
+                                string rs = "";
+                                if (arg3.Emote.Name == item.checkmark.Name)
+                                {
+                                    //good img
+                                    string curr = File.ReadAllText(Global.ButterFile);
+                                    File.WriteAllText(Global.ButterFile, curr + "\n" + item.url);
+                                    Global.ConsoleLog($"the image {item.url} has been approved by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}");
+                                    await _client.GetUser(item.SubmitterID).SendMessageAsync($"Your butter submission was approved by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator} ({item.url})");
+                                    await item.botMSG.DeleteAsync();
+                                    await item.linkMsg.DeleteAsync();
+                                    Global.SubsList.Remove(item);
+                                    rs = "Accepted";
+                                }
+                                if (arg3.Emote.Name == item.Xmark.Name)
+                                {
+                                    //bad img
+                                    Global.ConsoleLog($"the image {item.url} has been Denied by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}", ConsoleColor.Red);
+                                    await item.botMSG.DeleteAsync();
+                                    await item.linkMsg.DeleteAsync();
+                                    Global.SubsList.Remove(item);
+                                    var chan = _client.GetUser(item.SubmitterID);
+                                    await chan.SendMessageAsync($"Your butter submission was Denied by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}, if you have any questions contact them ({item.url})");
+                                    rs = "Denied";
+                                }
+
+                                EmbedBuilder eb = new EmbedBuilder()
+                                {
+                                    Title = "Submission Result",
+                                    Color = Color.Blue,
+                                    Description = $"The image {item.url} Submitted by {_client.GetUser(item.SubmitterID).Mention} has been **{rs}** by {arg3.User.Value.Mention} ({arg3.User.Value.Username}#{arg3.User.Value.Discriminator})",
+                                    Footer = new EmbedFooterBuilder()
+                                    {
+                                        Text = "Result Autogen",
+                                        IconUrl = _client.CurrentUser.GetAvatarUrl()
+                                    }
+                                };
+                                await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.SubmissionsLogChanID).SendMessageAsync("", false, eb.Build());
+                            }
                         }
-                        if (arg3.Emote.Name == item.Xmark.Name)
+                    }
+                    if (item.botMSG.Content == arg1.Value.Content)
+                    {
+                        if (!arg3.User.Value.IsBot) //not a bot
                         {
-                            //bad img
-                            Global.ConsoleLog($"the image {item.url} has been Denied by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}", ConsoleColor.Red);
-                            await _client.GetDMChannelAsync(item.orig_msg.Author.Id).Result.SendMessageAsync($"Your butter submission was Denied by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}, if you have any questions contact them ({item.url})");
-                            await item.botMSG.DeleteAsync();
-                            Global.SubsList.Remove(item);
+                            string rs = "";
+                            if (arg3.Emote.Name == item.checkmark.Name)
+                            {
+                                //good img
+                                string curr = File.ReadAllText(Global.ButterFile);
+                                File.WriteAllText(Global.ButterFile, curr + "\n" + item.url);
+                                Global.ConsoleLog($"the image {item.url} has been approved by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}");
+                                await _client.GetUser(item.SubmitterID).SendMessageAsync($"Your butter submission was approved by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator} ({item.url})");
+                                await item.botMSG.DeleteAsync();
+                                await item.linkMsg.DeleteAsync();
+                                Global.SubsList.Remove(item);
+                                rs = "Accepted";
+                            }
+                            if (arg3.Emote.Name == item.Xmark.Name)
+                            {
+                                //bad img
+                                Global.ConsoleLog($"the image {item.url} has been Denied by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}", ConsoleColor.Red);
+                                await item.botMSG.DeleteAsync();
+                                await item.linkMsg.DeleteAsync();
+                                Global.SubsList.Remove(item);
+                                var chan = _client.GetUser(item.SubmitterID);
+                                await chan.SendMessageAsync($"Your butter submission was Denied by {arg3.User.Value.Username}#{arg3.User.Value.Discriminator}, if you have any questions contact them ({item.url})");
+                                rs = "Denied";
+                            }
+
+                            EmbedBuilder eb = new EmbedBuilder()
+                            {
+                                Title = "Submission Result",
+                                Color = Color.Blue,
+                                Description = $"The image {item.url} has been **{rs}** by {arg3.User.Value.Mention} ({arg3.User.Value.Username}#{arg3.User.Value.Discriminator})",
+                                Footer = new EmbedFooterBuilder()
+                                {
+                                    Text = "Result Autogen",
+                                    IconUrl = _client.CurrentUser.GetAvatarUrl()
+                                }
+                            };
+                            await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.SubmissionsLogChanID).SendMessageAsync("", false, eb.Build());
+                        
                         }
                     }
                 }
@@ -91,22 +219,9 @@ namespace SwissBot
 
         private async Task WelcomeMessage(SocketGuildUser arg)
         {
-            string welcomeMessage = WelcomeMessageBuilder(Global.WelcomeMessage, arg);
-
-            EmbedBuilder eb = new EmbedBuilder()
-            {
-                Title = $"***Welcome to Swiss001's Discord server!***",
-                Footer = new EmbedFooterBuilder()
-                {
-                    IconUrl = arg.GetAvatarUrl(),
-                    Text = $"{arg.Username}#{arg.Discriminator}"
-                },
-                Description = welcomeMessage,
-                ThumbnailUrl = Global.WelcomeMessageURL,
-                Color = Color.Green
-            };
-            await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.WelcomeMessageChanID).SendMessageAsync("", false, eb.Build());
-            Global.ConsoleLog($"WelcomeMessage for {arg.Username}#{arg.Discriminator}", ConsoleColor.Blue);
+            var unVertRole = _client.GetGuild(Global.SwissGuildId).Roles.FirstOrDefault(x => x.Id == Global.UnverifiedRoleID);
+            await arg.AddRoleAsync(unVertRole);
+            Console.WriteLine($"The member {arg.Username}#{arg.Discriminator} joined the guild");
         }
         internal static string WelcomeMessageBuilder(string orig, SocketGuildUser user)
         {
@@ -136,13 +251,18 @@ namespace SwissBot
                 {
                     if(message.Embeds.First().Description.Contains("This image was submitted by"))
                     {
+                        System.Text.RegularExpressions.Regex r = new System.Text.RegularExpressions.Regex("<@(.*?)>");
+                        System.Text.RegularExpressions.Regex r2 = new System.Text.RegularExpressions.Regex("LINK: (.*?)");
+                        var link = r.Match(message.Embeds.First().Description);
+                        var userid = r.Match(message.Embeds.First().Description).Value.Trim('<', '>', '@', '!');
 
                         Global.UnnaprovedSubs ua = new Global.UnnaprovedSubs()
                         {
-                            botMSG = message,
+                            linkMsg = message,
+                            botMSG = messages.FirstOrDefault(x => x.Content.Contains(link.Value)),
                             checkmark = new Emoji("✓"),
                             Xmark = new Emoji("❌"),
-                            orig_msg = null,
+                            SubmitterID = Convert.ToUInt64(userid),
                             url = message.Embeds.First().Image.Value.Url
                         };
                         Global.SubsList.Add(ua);
@@ -191,6 +311,14 @@ namespace SwissBot
                 Console.ForegroundColor = ConsoleColor.DarkGreen;
             }
         }
+        public async Task EchoMessage(SocketCommandContext Context)
+        {
+            if(Context.Guild.GetCategoryChannel(Global.TestingCat).Channels.Contains(Context.Guild.GetTextChannel(Context.Channel.Id)))
+            { 
+                var echomsg = Context.Message.Content.Replace($"{Global.Preflix}echo", "");
+                var chan = Context.Guild.GetTextChannel(592463507124125706).SendMessageAsync(echomsg);
+            }
+        }
         public async Task HandleCommandAsync(SocketMessage s)
         {
            
@@ -203,6 +331,7 @@ namespace SwissBot
             int argPos = 0;
             if (msg.HasCharPrefix(Global.Preflix, ref argPos))
             {
+                if (msg.Content.StartsWith($"{Global.Preflix}echo")) { await EchoMessage(context); return; }
                 var result = await _service.ExecuteAsync(context, argPos, null, MultiMatchHandling.Best);
 
                 if (!result.IsSuccess && result.Error != CommandError.UnknownCommand)

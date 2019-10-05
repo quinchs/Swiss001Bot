@@ -28,6 +28,7 @@ namespace SwissBot
         public static string MessageLogsDir = $"{Environment.CurrentDirectory}\\Messagelogs";
         public static string CommandLogsDir = $"{Environment.CurrentDirectory}\\Commandlogs";
         public static string ButterFile = $"{Environment.CurrentDirectory}\\Data\\Landings.butter";
+        public static string ButterFilesDirPath = $"{Environment.CurrentDirectory}\\Data\\ButterFiles";
         public static ulong LogsChannelID { get; set; }
         public static ulong DebugChanID { get; set; }
         public static List<UnnaprovedSubs> SubsList = new List<UnnaprovedSubs>();
@@ -39,6 +40,12 @@ namespace SwissBot
         public static ulong SubmissionChanID { get; set; }
         public static string WelcomeMessageURL { get; set; }
         public static ulong ModeratorRoleID { get; set; }
+        public static ulong MemberRoleID { get; set; }
+        public static ulong UnverifiedRoleID { get; set; }
+        public static ulong VerificationChanID { get; set; }
+        public static ulong VerificationLogChanID { get; set; }
+        public static ulong SubmissionsLogChanID { get; set; }
+
         internal static Dictionary<string, string> jsonItemsList { get; private set; }
         internal static Dictionary<string, string> JsonItemsListDevOps { get; private set; }
 
@@ -72,6 +79,11 @@ namespace SwissBot
             SubmissionChanID = data.SubmissionChanID;
             TestingCat = data.TestingCatigoryID;
             ModeratorRoleID = data.ModeratorRoleID;
+            MemberRoleID = data.MemberRoleID;
+            UnverifiedRoleID = data.UnverifiedRoleID;
+            VerificationChanID = data.VerificationChanID;
+            VerificationLogChanID = data.VerificationLogChanID;
+            SubmissionsLogChanID = data.SubmissionsLogChanID;
         }
         public static void SaveConfigPerms(Dictionary<string, bool> nConfigPerm)
         {
@@ -122,7 +134,12 @@ namespace SwissBot
             public ulong WelcomeMessageChanID { get; set; }
             public string WelcomeMessage { get; set; }
             public string WelcomeMessageURL { get; set; }
+            public ulong VerificationLogChanID { get; set; }
             public ulong ModeratorRoleID { get; set; }
+            public ulong MemberRoleID { get; set; }
+            public ulong UnverifiedRoleID { get; set; }
+            public ulong VerificationChanID { get; set; }
+            public ulong SubmissionsLogChanID { get; set; }
         }
         public static void ConsoleLog(string ConsoleMessage, ConsoleColor FColor = ConsoleColor.Green, ConsoleColor BColor = ConsoleColor.Black)
         {
@@ -134,11 +151,12 @@ namespace SwissBot
         }
         public struct UnnaprovedSubs
         {
-            public IMessage orig_msg { get; set; }
+            public IMessage linkMsg { get; set; }
             public IMessage botMSG { get; set; }
             public string url { get; set; }
             public Emoji checkmark { get; set; }
             public Emoji Xmark { get; set; }
+            public ulong SubmitterID { get; set; }
         }
     }
 }

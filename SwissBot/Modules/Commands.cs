@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using static SwissBot.Global;
@@ -15,25 +16,51 @@ namespace SwissBot.Modules
         [Command("help")]
         public async Task help()
         {
-            EmbedBuilder eb = new EmbedBuilder()
+            if (Context.Guild.Id == SwissBotDevGuildID || Context.Guild.GetCategoryChannel(Global.TestingCat).Channels.Contains(Context.Guild.GetTextChannel(Context.Channel.Id)))
             {
-                Title = "***SwissBot Help***",
-                Color = Color.Green,
-                Description = "These are the following commands for SwissBot!\n\n" +
-                "**\"**modify**\n**Parameters** - ```\"modify (ITEMNAME) (NEWVALUE)```\n use `\"modify list` to view the `.config` file\n\n" +
-                "**\"welcome**\n Use this command to test the welcome message\n\n" +
-                "**\"commandlogs**\n**Parameters** - ```\"commandlogs (LOG_NAME)```\n use `\"commandlogs list` to view all command logs\n\n" +
-                "**\"messagelogs**\n**Parameters** - ```\"messagelogs (LOG_NAME)```\n use `\"messagelogs list` to view all message logs\n\n" +
-                "**\"help** \n View this help message :D",
-                Footer = new EmbedFooterBuilder()
+                EmbedBuilder eb = new EmbedBuilder()
                 {
-                    IconUrl = Context.Client.CurrentUser.GetAvatarUrl(),
-                    Text = "Help Autogen"
-                },
-            };
-            await Context.Channel.SendMessageAsync("", false, eb.Build());
+                    Title = "***SwissBot Help***",
+                    Color = Color.Green,
+                    Description = "These are the following commands for SwissBot!\n\n" +
+                $"```{Global.Preflix}modify```\n**Parameters** - `{Global.Preflix}modify (ITEMNAME) (NEWVALUE)`\n use `{Global.Preflix}modify list` to view the `.config` file\n\n" +
+                $"```{Global.Preflix}welcome```\n Use this command to test the welcome message\n\n" +
+                $"```{Global.Preflix}butter```\n**Parameters** - `{Global.Preflix}butter (LINK)`\n use this command to get or submit butter landings!\n\n" +
+                $"```{Global.Preflix}commandlogs```\n**Parameters** - `{Global.Preflix}commandlogs (LOG_NAME)`\n use `{Global.Preflix}commandlogs list` to view all command logs\n\n" +
+                $"```{Global.Preflix}messagelogs```\n**Parameters** - `{Global.Preflix}messagelogs (LOG_NAME)`\n use `{Global.Preflix}messagelogs list` to view all message logs\n\n" +
+                $"```{Global.Preflix}help```\n View this help message :D\n" +
+                $"```{Global.Preflix}muteusers```\n use this command in a voice channel to server mute all members in a voice channel\n **Does not mute staff**\n" +
+                $"```{Global.Preflix}unmuteusers```\n use this command in a voice channel to unserver mute all members in a voice channel\n **Does not mute/unmute staff**",
+                    Footer = new EmbedFooterBuilder()
+                    {
+                        IconUrl = Context.Client.CurrentUser.GetAvatarUrl(),
+                        Text = "Help Autogen"
+                    },
+                };
+                await Context.Channel.SendMessageAsync("", false, eb.Build());
+            }
+            else
+            {
+                EmbedBuilder eb = new EmbedBuilder()
+                {
+                    Title = "***SwissBot Help***",
+                    Color = Color.Green,
+                    Description = "These are the following commands for SwissBot!\n\n" +
+               // $"**{Global.Preflix}**modify**\n**Parameters** - ```{Global.Preflix}modify (ITEMNAME) (NEWVALUE)```\n use `{Global.Preflix}modify list` to view the `.config` file\n\n" +
+                //$"**{Global.Preflix}welcome**\n Use this command to test the welcome message\n\n" +
+                $"`{Global.Preflix}butter`\n**Parameters** - ```{Global.Preflix}butter (LINK)```\n use this command to get or submit butter landings!\n\n" +
+                //$"**{Global.Preflix}commandlogs**\n**Parameters** - ```{Global.Preflix}commandlogs (LOG_NAME)```\n use `{Global.Preflix}commandlogs list` to view all command logs\n\n" +
+                //$"**{Global.Preflix}messagelogs**\n**Parameters** - ```{Global.Preflix}messagelogs (LOG_NAME)```\n use `{Global.Preflix}messagelogs list` to view all message logs\n\n" +
+                $"`{Global.Preflix}help`\n View this help message :D",
+                    Footer = new EmbedFooterBuilder()
+                    {
+                        IconUrl = Context.Client.CurrentUser.GetAvatarUrl(),
+                        Text = "Help Autogen"
+                    },
+                };
+                await Context.Channel.SendMessageAsync("", false, eb.Build());
+            }
         }
-
         [Command("butter")]
         public async Task butter(string url)
         {
@@ -50,33 +77,34 @@ namespace SwissBot.Modules
                     var msg = await Context.Channel.SendMessageAsync($"Added {url} to the butter database!");
                     await Context.Message.DeleteAsync();
                     await Task.Delay(5000);
-                    msg.DeleteAsync();
+                    await msg.DeleteAsync();
                 }
                 else
                 {
                     UnnaprovedSubs us = new UnnaprovedSubs();
-                    us.orig_msg = Context.Message;
+                   
                     us.url = url;
-
+                    us.SubmitterID = Context.Message.Author.Id;
                     await Context.Channel.SendMessageAsync($"Thank you, {Context.Message.Author.Mention} for the submission, we will get back to you!");
                     EmbedBuilder eb = new EmbedBuilder();
-                    eb.ImageUrl = us.url;
+                    //eb.ImageUrl = us.url;
                     eb.Title = "**Butter Submission**";
-                    eb.Description = $"This image was submitted by {us.orig_msg.Author.Mention}";
+                    eb.Description = $"This image was submitted by {Context.Guild.GetUser(us.SubmitterID).Mention}.";
                     eb.Color = Color.Orange;
                     var msg = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync("", false, eb.Build());
-                    await msg.AddReactionAsync(new Emoji("✅"));
-                    await msg.AddReactionAsync(new Emoji("❌"));
+                    var msg2 = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync(us.url);
+
+                    await msg2.AddReactionAsync(new Emoji("✅"));
+                    await msg2.AddReactionAsync(new Emoji("❌"));
                     us.checkmark = new Emoji("✅");
                     us.Xmark = new Emoji("❌");
-                    us.botMSG = msg;
+                    us.botMSG = msg2;
+                    us.linkMsg = msg;
                     SubsList.Add(us);
                     var curr = getUnvertCash();
                     curr.Add(msg.Id.ToString());
                     saveUnvertCash(curr);
                 }
-                
-                
             }
             else { await Context.Channel.SendMessageAsync("That is not a valad URL!"); }
         }
@@ -103,6 +131,75 @@ namespace SwissBot.Modules
                 await Context.Channel.SendMessageAsync("You do not have permission to use this command!");
             }
         }
+        [Command("terminate")]
+        public async Task term()
+        {
+            if(Context.Guild.Id == Global.SwissBotDevGuildID)
+            {
+                await Context.Channel.SendMessageAsync("Shutting down!");
+                Environment.Exit(1);
+            }
+            else
+            {
+                if (Context.Guild.GetUser(Context.User.Id).Roles.Contains(Context.Guild.Roles.FirstOrDefault(x => x.Id == Global.DeveloperRoleId)) || Context.User.Id == Context.Client.CurrentUser.Id)
+                {
+                    await Context.Channel.SendMessageAsync("Shutting down Overlord!");
+                    Environment.Exit(1);
+                }
+            }
+        }
+        [Command("muteusers")]
+        public async Task muteusers()
+        {
+            var r = Context.Guild.GetUser(Context.Message.Author.Id).Roles;
+            var adminrolepos = Context.Guild.Roles.FirstOrDefault(x => x.Id == Global.DeveloperRoleId).Position;
+            var rolepos = r.FirstOrDefault(x => x.Position >= adminrolepos);
+            if (rolepos != null)
+            {
+                if(Context.Guild.GetUser(Context.Message.Author.Id).VoiceChannel != null)
+                {
+                    await Context.Channel.SendMessageAsync($"Starting to mute members...");
+                    int u = 0;
+                    foreach(var user in Context.Guild.GetUser(Context.Message.Author.Id).VoiceChannel.Users)
+                    {
+                        var r2 = Context.Guild.GetUser(user.Id).Roles;
+                        var adminrolepos2 = Context.Guild.Roles.FirstOrDefault(x => x.Id == Global.DeveloperRoleId).Position;
+                        var rolepos2 = r2.FirstOrDefault(x => x.Position >= adminrolepos);
+                        if (rolepos2 == null)
+                        {
+                            await user.ModifyAsync(x => x.Mute = true);
+                            u++;
+                        }
+                    }
+                    await Context.Channel.SendMessageAsync($"Muted {u} members");
+                }
+            }
+        }
+        [Command("unmuteusers")]
+        public async Task unmuteusers()
+        {
+            var r = Context.Guild.GetUser(Context.Message.Author.Id).Roles;
+            var adminrolepos = Context.Guild.Roles.FirstOrDefault(x => x.Id == Global.DeveloperRoleId).Position;
+            var rolepos = r.FirstOrDefault(x => x.Position >= adminrolepos);
+            if (rolepos != null)
+            {
+                if (Context.Guild.GetUser(Context.Message.Author.Id).VoiceChannel != null)
+                {
+                    await Context.Channel.SendMessageAsync($"Starting to Unmute members...");
+                    int u = 0;
+
+                    foreach (var user in Context.Guild.GetUser(Context.Message.Author.Id).VoiceChannel.Users)
+                    {
+                        if (user.IsMuted)
+                        {
+                            await user.ModifyAsync(x => x.Mute = false);
+                            u++;
+                        }
+                    }
+                    await Context.Channel.SendMessageAsync($"UnMuted {u} members");
+                }
+            }
+        }
         [Command("butter")]
         public async Task butter()
         {
@@ -112,22 +209,28 @@ namespace SwissBot.Modules
                 foreach(var attachment in Context.Message.Attachments)
                 {
                     UnnaprovedSubs us = new UnnaprovedSubs();
-                    us.orig_msg = Context.Message;
-                    us.url = attachment.Url;
 
+                    us.url = attachment.Url;
+                    us.SubmitterID = Context.Message.Author.Id;
                     await Context.Channel.SendMessageAsync($"Thank you, {Context.Message.Author.Mention} for the submission, we will get back to you!");
                     EmbedBuilder eb = new EmbedBuilder();
-                    eb.ImageUrl = us.url;
+                    //eb.ImageUrl = us.url;
                     eb.Title = "**Butter Submission**";
-                    eb.Description = $"This image was submitted by {us.orig_msg.Author.Mention}";
+                    eb.Description = $"This image was submitted by {Context.Guild.GetUser(us.SubmitterID).Mention}. LINK: {us.url}";
                     eb.Color = Color.Orange;
                     var msg = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync("", false, eb.Build());
-                    us.botMSG = msg;
-                    await msg.AddReactionAsync(new Emoji("✓"));
-                    await msg.AddReactionAsync(new Emoji("❌"));
-                    us.checkmark = new Emoji("✓");
+                    var msg2 = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync(us.url);
+
+                    await msg2.AddReactionAsync(new Emoji("✅"));
+                    await msg2.AddReactionAsync(new Emoji("❌"));
+                    us.checkmark = new Emoji("✅");
                     us.Xmark = new Emoji("❌");
+                    us.botMSG = msg2;
+                    us.linkMsg = msg;
                     SubsList.Add(us);
+                    var curr = getUnvertCash();
+                    curr.Add(msg.Id.ToString());
+                    saveUnvertCash(curr);
                 }
             }
             else //get a random butter
@@ -234,7 +337,7 @@ namespace SwissBot.Modules
                     eb.Color = Color.Green;
                     eb.Title = "**Command logs List**";
                     eb.Description = $"Here are the current Command Logs, To fetch one do `\"commandlogs (name)` \n ```{names}```";
-
+                    await Context.Channel.SendMessageAsync("", false, eb.Build());
                 }
                 else
                 {
