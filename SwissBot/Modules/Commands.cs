@@ -89,7 +89,7 @@ namespace SwissBot.Modules
                     EmbedBuilder eb = new EmbedBuilder();
                     //eb.ImageUrl = us.url;
                     eb.Title = "**Butter Submission**";
-                    eb.Description = $"This image was submitted by {Context.Guild.GetUser(us.SubmitterID).Mention}.";
+                    eb.Description = $"This image was submitted by {Context.Guild.GetUser(us.SubmitterID).Mention}. LINK: {us.url};";
                     eb.Color = Color.Orange;
                     var msg = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync("", false, eb.Build());
                     var msg2 = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync(us.url);
@@ -108,6 +108,15 @@ namespace SwissBot.Modules
             }
             else { await Context.Channel.SendMessageAsync("That is not a valad URL!"); }
         }
+        [Command("testmilestone")]
+        public async Task testMilestone(string count)
+        {
+            if (Context.Guild.GetCategoryChannel(Global.TestingCat).Channels.Contains(Context.Guild.GetTextChannel(Context.Channel.Id)))
+            {
+                await CommandHandler.SendMilestone(Convert.ToInt32(count), Context.Channel.Id);
+            }
+        }
+
         [Command("purge")]
         public async Task purge(uint amount)
         {
@@ -146,6 +155,14 @@ namespace SwissBot.Modules
                     await Context.Channel.SendMessageAsync("Shutting down Overlord!");
                     Environment.Exit(1);
                 }
+            }
+        }
+        [Command("QL")]
+        public async Task muteusers(string rep)
+        {
+            if(rep == "good" || rep == "bad")
+            {
+                await Context.Channel.SendMessageAsync($"ive been a {rep} boi, input noted down for the future");
             }
         }
         [Command("muteusers")]
@@ -580,53 +597,16 @@ namespace SwissBot.Modules
         {
             try
             {
-                switch (iName)
+                var prop = data.GetType().GetProperty(iName);
+                if(prop != null)
                 {
-                    case "Status":
-                        data.Status = iValue;
-                        Context.Client.SetGameAsync(iValue, null, ActivityType.Listening);
-                        break;
-                    case "Preflix":
-                        data.Preflix = iValue.ToCharArray()[0];
-                        break;
-                    case "SwissGuildID":
-                        data.SwissGuildID = Convert.ToUInt64(iValue);
-                        break;
-                    case "SwissTestingGuildID":
-                        data.SwissTestingGuildID = Convert.ToUInt64(iValue);
-                        break;
-                    case "TestingCatigory":
-                        data.TestingCatigoryID = Convert.ToUInt64(iValue);
-                        break;
-                    case "DeveloperRoleId":
-                        data.DeveloperRoleId = Convert.ToUInt64(iValue);
-                        break;
-                    case "LogsChannelID":
-                        data.LogsChannelID = Convert.ToUInt64(iValue);
-                        break;
-                    case "DebugChanID":
-                        data.DebugChanID = Convert.ToUInt64(iValue);
-                        break;
-                    case "SubmissionChanID":
-                        data.SubmissionChanID = Convert.ToUInt64(iValue);
-                        break;
-                    case "WelcomeMessageChanID":
-                        data.WelcomeMessageChanID = Convert.ToUInt64(iValue);
-                        break;
-                    case "ModeratorRoleID":
-                        data.ModeratorRoleID = Convert.ToUInt64(iValue);
-                        break;
-                    case "WelcomeMessage":
-                        data.WelcomeMessage = (iValue);
-                        break;
-                    case "WelcomeMessageURL":
-                        data.WelcomeMessageURL = (iValue);
-                        break;
-                    case "StatsChanID":
-                        data.StatsChanID = Convert.ToUInt64(iValue);
-                        break;
+                    Type t = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                    object safeValue = (iValue == null) ? null : Convert.ChangeType(iValue, t);
+                    prop.SetValue(data, safeValue, null);
+                    return data;
                 }
                 return data;
+
             }
             catch (Exception ex)
             {

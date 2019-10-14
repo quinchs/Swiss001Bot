@@ -29,7 +29,7 @@ namespace SwissBot
             {
                 LogLevel = LogSeverity.Debug,
                 AlwaysDownloadUsers = true,
-                MessageCacheSize = 99999,
+                //MessageCacheSize = 99999,
             });
             
 

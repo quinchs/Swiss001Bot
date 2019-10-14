@@ -22,7 +22,7 @@ namespace SwissBot
 
             _client.SetGameAsync(Global.Status, "https://github.com/quinchs/Swiss001Bot", ActivityType.Streaming);
 
-            _client.SetStatusAsync(UserStatus.Online);
+            _client.SetStatusAsync(UserStatus.DoNotDisturb);
 
             _service = new CommandService();
 
@@ -56,9 +56,7 @@ namespace SwissBot
             }
             catch(Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine();
-                Console.ForegroundColor = ConsoleColor.White;
+                Global.ConsoleLog($"Reaction handler error: {ex.Message}", ConsoleColor.Red);
             }
         }
 
@@ -120,7 +118,7 @@ namespace SwissBot
                         Global.ConsoleLog("Error, Reaction Message doesnt exist, Using ID to get message", ConsoleColor.Red);
 
                         var msg = _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.SubmissionChanID).GetMessageAsync(arg3.MessageId).Result;
-                        if (item.botMSG.Embeds.First().Image.Value.Url == msg.Embeds.First().Image.Value.Url && item.botMSG.Embeds.First().Description == msg.Embeds.First().Description)
+                        if (item.botMSG.Embeds.First().Description == msg.Embeds.First().Description)
                         {
                             if (!arg3.User.Value.IsBot) //not a bot
                             {
@@ -222,6 +220,51 @@ namespace SwissBot
             var unVertRole = _client.GetGuild(Global.SwissGuildId).Roles.FirstOrDefault(x => x.Id == Global.UnverifiedRoleID);
             await arg.AddRoleAsync(unVertRole);
             Console.WriteLine($"The member {arg.Username}#{arg.Discriminator} joined the guild");
+            await checkMembers();
+        }
+        internal static async Task checkMembers()
+        {
+            switch (_client.GetGuild(Global.SwissGuildId).MemberCount)
+            {
+                case 5000:
+                    await SendMilestone(5000);
+                    break;
+                case 6000:
+                    await SendMilestone(6000);
+                    break;
+                case 7000:
+                    await SendMilestone(7000);
+                    break;
+                case 7500:
+                    await SendMilestone(7500);
+                    break;
+            }
+        }
+        public static async Task SendMilestone(int count, ulong chanid = 0)
+        {
+            SocketTextChannel MilestoneChan;
+            if (chanid != 0) { MilestoneChan = _client.GetGuild(Global.SwissGuildId).GetTextChannel(chanid); }
+            else { MilestoneChan = _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.MilestonechanID); }
+            var memberList = _client.GetGuild(Global.SwissGuildId).Users.ToList();
+            Random r = new Random();
+            var mem1 = memberList[r.Next(0, memberList.Count)];
+            var mem2 = memberList[r.Next(0, memberList.Count)];
+            var mem3 = memberList[r.Next(0, memberList.Count)];
+            var msg = await MilestoneChan.SendMessageAsync("@everyone", false, new EmbedBuilder() {
+                Color = Color.Blue,
+                Title = $":tada: We did it! Congratulations on {count} Members!! :tada:",
+                Footer = new EmbedFooterBuilder()
+                {
+                    Text = "Swiss001's Discord",
+                    IconUrl = _client.GetUser(365958535768702988).GetAvatarUrl(),
+                    
+                },
+                ThumbnailUrl = Global.WelcomeMessageURL,
+                Description = $"Thank you @everyone we made it to {count} Members, Congrats everyone :tada: :tada:!\n\nI would like to thank {mem1.Mention} for there support on this discord and also {mem2.Mention} for sticking up for the community, and a **THICC** thanks to {mem3.Mention} for making us all laugh a little more, and a HUGE thanks to the {count} people who make this community what it is today\n\nFrom,\n*Swiss001 Staff Team.*",
+                Url = "https://www.youtube.com/channel/UCYiaHzwtsww6phfxwUtZv8w"
+            }.Build());
+            Global.ConsoleLog("\n\n Milestone Reached! \n\n", ConsoleColor.Blue);
+            await msg.ModifyAsync(x => x.Content = " ");
         }
         internal static string WelcomeMessageBuilder(string orig, SocketGuildUser user)
         {
@@ -238,8 +281,102 @@ namespace SwissBot
             Global.ConsoleLog("Starting Init... \n\n Updating UserCounts...", ConsoleColor.DarkCyan);
             Global.UserCount = _client.GetGuild(Global.SwissGuildId).Users.Count;
             await UpdateUserCount(null);
+            Global.ConsoleLog("Finnished UserCount", ConsoleColor.Cyan);
             await UserSubCashing();
+            await AddUnVert();
+            await CheckVerts();
             Global.ConsoleLog("Finnished Init!", ConsoleColor.Black, ConsoleColor.DarkGreen);
+        }
+        private async Task CheckVerts()
+        {
+            var unVertRole = _client.GetGuild(Global.SwissGuildId).Roles.FirstOrDefault(x => x.Id == Global.UnverifiedRoleID);
+            var userRole = _client.GetGuild(Global.SwissGuildId).Roles.FirstOrDefault(x => x.Id == Global.MemberRoleID);
+
+            foreach (var user in _client.GetGuild(Global.SwissGuildId).Users.Where(x => x.Roles.Contains(unVertRole) && x.Roles.Count == 2))
+            {
+                await user.AddRoleAsync(userRole);
+                Global.ConsoleLog($"Found the user {user.Username}#{user.Discriminator} who hasnt recieved verification yet. Gave them Member role", ConsoleColor.White, ConsoleColor.DarkBlue);
+                EmbedBuilder eb2 = new EmbedBuilder()
+                {
+                    Title = $"Verified {user.Mention}",
+                    Color = Color.Green,
+                    Footer = new EmbedFooterBuilder()
+                    {
+                        IconUrl = user.GetAvatarUrl(),
+                        Text = $"{user.Username}#{user.Discriminator}"
+                    },
+                };
+                var chan = _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.VerificationLogChanID);
+                await chan.SendMessageAsync("", false, eb2.Build());
+                await user.RemoveRoleAsync(unVertRole);
+                string welcomeMessage = WelcomeMessageBuilder(Global.WelcomeMessage, user);
+                EmbedBuilder eb = new EmbedBuilder()
+                {
+                    Title = $"***Welcome to Swiss001's Discord server!***",
+                    Footer = new EmbedFooterBuilder()
+                    {
+                        IconUrl = user.GetAvatarUrl(),
+                        Text = $"{user.Username}#{user.Discriminator}"
+                    },
+                    Description = welcomeMessage,
+                    ThumbnailUrl = Global.WelcomeMessageURL,
+                    Color = Color.Green
+                };
+                await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.WelcomeMessageChanID).SendMessageAsync("", false, eb.Build());
+
+            }
+            //IUserMessage sMessage = (IUserMessage)await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.VerificationChanID).GetMessageAsync(627680940155469844);
+            //var emote = new Emoji("✅");
+            //var reActs = await sMessage.GetReactionUsersAsync(emote, 5000).FlattenAsync();
+            //foreach (var rUsers in reActs.ToList())
+            //{
+            //    var user = _client.GetGuild(Global.SwissGuildId).GetUser(rUsers.Id);
+            //    if(user != null)
+            //    {
+            //        if (user.Roles.Contains(unVertRole))
+            //        {
+            //            await user.AddRoleAsync(userRole);
+            //            Global.ConsoleLog($"Found the user {user.Username}#{user.Discriminator} who hasnt recieved verification yet. Gave them Member role", ConsoleColor.White, ConsoleColor.DarkBlue);
+            //            EmbedBuilder eb2 = new EmbedBuilder()
+            //            {
+            //                Title = $"Verified {user.Mention}",
+            //                Color = Color.Green,
+            //                Footer = new EmbedFooterBuilder()
+            //                {
+            //                    IconUrl = user.GetAvatarUrl(),
+            //                    Text = $"{user.Username}#{user.Discriminator}"
+            //                },
+            //            };
+            //            var chan = _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.VerificationLogChanID);
+            //            await chan.SendMessageAsync("", false, eb2.Build());
+            //            await user.RemoveRoleAsync(unVertRole);
+            //            string welcomeMessage = WelcomeMessageBuilder(Global.WelcomeMessage, user);
+            //            EmbedBuilder eb = new EmbedBuilder()
+            //            {
+            //                Title = $"***Welcome to Swiss001's Discord server!***",
+            //                Footer = new EmbedFooterBuilder()
+            //                {
+            //                    IconUrl = user.GetAvatarUrl(),
+            //                    Text = $"{user.Username}#{user.Discriminator}"
+            //                },
+            //                Description = welcomeMessage,
+            //                ThumbnailUrl = Global.WelcomeMessageURL,
+            //                Color = Color.Green
+            //            };
+            //            await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.WelcomeMessageChanID).SendMessageAsync("", false, eb.Build());
+
+            //        }
+            //    }
+            //    else { }
+            //}
+        }
+        private async Task AddUnVert()
+        {
+            var noRoleUsers = _client.GetGuild(Global.SwissGuildId).Users.Where(x => x.Roles.Count == 1).ToList();
+            Global.ConsoleLog($"Found {noRoleUsers.Count} Users without verification, Adding the Unverivied role...", ConsoleColor.Cyan);
+            var unVertRole = _client.GetGuild(Global.SwissGuildId).Roles.FirstOrDefault(x => x.Id == Global.UnverifiedRoleID);
+            int i = 0;
+            foreach (var user in noRoleUsers) { await user.AddRoleAsync(unVertRole); i++; Global.ConsoleLog($"Gave Unvert role to {user.Username}, {noRoleUsers.Count - i} users left", ConsoleColor.White, ConsoleColor.DarkBlue); }
         }
         private async Task UserSubCashing()
         {
@@ -247,25 +384,31 @@ namespace SwissBot
 
             foreach (var message in messages)
             {
-                if(message.Embeds.Count >= 1)
+                if(message.Embeds.Count >= 1 && message.Embeds.First().Description != null)
                 {
                     if(message.Embeds.First().Description.Contains("This image was submitted by"))
                     {
                         System.Text.RegularExpressions.Regex r = new System.Text.RegularExpressions.Regex("<@(.*?)>");
-                        System.Text.RegularExpressions.Regex r2 = new System.Text.RegularExpressions.Regex("LINK: (.*?)");
-                        var link = r.Match(message.Embeds.First().Description);
-                        var userid = r.Match(message.Embeds.First().Description).Value.Trim('<', '>', '@', '!');
+                        System.Text.RegularExpressions.Regex r2 = new System.Text.RegularExpressions.Regex("LINK: (.*?);");
+                        string disc = message.Embeds.First().Description;
+                        var link = r2.Match(disc).Groups[1].Value;
+                        var userid = r.Match(disc).Value.Trim('<', '>', '@', '!');
 
-                        Global.UnnaprovedSubs ua = new Global.UnnaprovedSubs()
+                        try
                         {
-                            linkMsg = message,
-                            botMSG = messages.FirstOrDefault(x => x.Content.Contains(link.Value)),
-                            checkmark = new Emoji("✓"),
-                            Xmark = new Emoji("❌"),
-                            SubmitterID = Convert.ToUInt64(userid),
-                            url = message.Embeds.First().Image.Value.Url
-                        };
-                        Global.SubsList.Add(ua);
+                            Global.UnnaprovedSubs ua = new Global.UnnaprovedSubs()
+                            {
+                                linkMsg = message,
+                                botMSG = messages.FirstOrDefault(x => x.Content.Contains(link)),
+                                checkmark = new Emoji("✅"),
+                                Xmark = new Emoji("❌"),
+                                SubmitterID = Convert.ToUInt64(userid),
+                                url = link
+                            };
+                            Global.SubsList.Add(ua);
+                        }
+                        catch(Exception ex) { }
+                       
                     }
                 }
             }

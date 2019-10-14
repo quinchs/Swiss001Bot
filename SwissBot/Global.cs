@@ -45,6 +45,7 @@ namespace SwissBot
         public static ulong VerificationChanID { get; set; }
         public static ulong VerificationLogChanID { get; set; }
         public static ulong SubmissionsLogChanID { get; set; }
+        public static ulong MilestonechanID { get; set; }
 
         internal static Dictionary<string, string> jsonItemsList { get; private set; }
         internal static Dictionary<string, string> JsonItemsListDevOps { get; private set; }
@@ -84,6 +85,7 @@ namespace SwissBot
             VerificationChanID = data.VerificationChanID;
             VerificationLogChanID = data.VerificationLogChanID;
             SubmissionsLogChanID = data.SubmissionsLogChanID;
+            MilestonechanID = data.MilestonechanID;
         }
         public static void SaveConfigPerms(Dictionary<string, bool> nConfigPerm)
         {
@@ -140,6 +142,7 @@ namespace SwissBot
             public ulong UnverifiedRoleID { get; set; }
             public ulong VerificationChanID { get; set; }
             public ulong SubmissionsLogChanID { get; set; }
+            public ulong MilestonechanID { get; set; }
         }
         public static void ConsoleLog(string ConsoleMessage, ConsoleColor FColor = ConsoleColor.Green, ConsoleColor BColor = ConsoleColor.Black)
         {
