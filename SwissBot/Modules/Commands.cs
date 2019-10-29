@@ -1,5 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
+using Discord.Rest;
+using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -98,8 +100,8 @@ namespace SwissBot.Modules
                     await msg2.AddReactionAsync(new Emoji("❌"));
                     us.checkmark = new Emoji("✅");
                     us.Xmark = new Emoji("❌");
-                    us.botMSG = msg2;
-                    us.linkMsg = msg;
+                    us.botMSG = msg;
+                    us.linkMsg = msg2;
                     SubsList.Add(us);
                     var curr = getUnvertCash();
                     curr.Add(msg.Id.ToString());
@@ -233,7 +235,7 @@ namespace SwissBot.Modules
                     EmbedBuilder eb = new EmbedBuilder();
                     //eb.ImageUrl = us.url;
                     eb.Title = "**Butter Submission**";
-                    eb.Description = $"This image was submitted by {Context.Guild.GetUser(us.SubmitterID).Mention}. LINK: {us.url}";
+                    eb.Description = $"This image was submitted by {Context.Guild.GetUser(us.SubmitterID).Mention}. LINK: {us.url};";
                     eb.Color = Color.Orange;
                     var msg = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync("", false, eb.Build());
                     var msg2 = await Context.Guild.GetTextChannel(Global.SubmissionChanID).SendMessageAsync(us.url);
@@ -242,8 +244,8 @@ namespace SwissBot.Modules
                     await msg2.AddReactionAsync(new Emoji("❌"));
                     us.checkmark = new Emoji("✅");
                     us.Xmark = new Emoji("❌");
-                    us.botMSG = msg2;
-                    us.linkMsg = msg;
+                    us.botMSG = msg;
+                    us.linkMsg = msg2;
                     SubsList.Add(us);
                     var curr = getUnvertCash();
                     curr.Add(msg.Id.ToString());
@@ -257,6 +259,56 @@ namespace SwissBot.Modules
                 int num = r.Next(0, max);
                 string link = File.ReadAllLines(ButterFile)[num];
                 await Context.Channel.SendMessageAsync($"50, 40, 30, 20, 10, **Butter** \n {link}");
+            }
+        }
+        [Command("slowmode")]
+        public async Task slowmode(string value)
+        {
+            //check user perms
+            var r = Context.Guild.GetUser(Context.Message.Author.Id).Roles;
+            var adminrolepos = Context.Guild.Roles.FirstOrDefault(x => x.Id == 593106382111113232).Position;
+            var rolepos = r.FirstOrDefault(x => x.Position >= adminrolepos);
+            if (rolepos != null || r.FirstOrDefault(x => x.Id == Global.DeveloperRoleId) != null)
+            {
+                try
+                {
+                    var chan = Context.Guild.GetTextChannel(Context.Channel.Id);
+                    await chan.ModifyAsync(x =>
+                    {
+                        x.SlowModeInterval = Convert.ToInt32(value);
+                    });
+                    await Context.Channel.SendMessageAsync("", false, new EmbedBuilder()
+                    {
+                        Color = Color.Green,
+                        Title = $"Set the slowmode to {value}!",
+                        Description = $"{Context.Message.Author.Mention} successfully modified the slowmode of <#{Context.Channel.Id}> to {value} seconds!",
+                        Author = new EmbedAuthorBuilder()
+                        {
+                            Name = Context.Message.Author.ToString(),
+                            IconUrl = Context.Message.Author.GetAvatarUrl(),
+                            Url = Context.Message.GetJumpUrl()
+                        }
+                    }.Build());
+                }
+                catch(Exception ex)
+                {
+                    Global.SendExeption(ex);
+                }
+            }
+            else
+            {
+                await Context.Channel.SendMessageAsync("", false, new EmbedBuilder()
+                {
+                    Color = Color.Red,
+                    Title = "You dont have Permission!",
+                    Description = $"Sorry {Context.Message.Author.Mention} but you do not have permission to change the slowmode of <#{Context.Channel.Id}> !",
+                    Author = new EmbedAuthorBuilder()
+                    {
+                        Name = Context.Message.Author.ToString(),
+                        IconUrl = Context.Message.Author.GetAvatarUrl(),
+                        Url = Context.Message.GetJumpUrl()
+                    }
+                }.Build());
             }
         }
         [Command("configperms")]
@@ -605,7 +657,7 @@ namespace SwissBot.Modules
                     prop.SetValue(data, safeValue, null);
                     return data;
                 }
-                return data;
+                else { throw new Exception($"Could not find the config item {iName}!"); }
 
             }
             catch (Exception ex)

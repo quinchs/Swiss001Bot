@@ -17,6 +17,7 @@ namespace SwissBot
         private static string ConfigPath = $"{Environment.CurrentDirectory}\\Data\\Config.json";
         private static string cMSGPath = $"{Environment.CurrentDirectory}\\Data\\CashedMSG.MSG";
         private static string ConfigSettingsPath = $"{Environment.CurrentDirectory}\\Data\\ConfigPerms.json";
+        public static string aiResponsePath = $"{Environment.CurrentDirectory}\\Data\\Responses.AI";
         public static string Status { get; set; }
         public static string Token { get; set; }
         public static DiscordSocketClient Client { get; set; }
@@ -35,6 +36,7 @@ namespace SwissBot
         public static ulong TestingCat { get; set; }
         public static Dictionary<string, bool> ConfigSettings { get; set; }
         public static ulong StatsChanID { get; set; }
+        public static ulong StatsTotChanID { get; set; }
         public static ulong WelcomeMessageChanID { get; set; }
         public static string WelcomeMessage { get; set; }
         public static ulong SubmissionChanID { get; set; }
@@ -46,6 +48,7 @@ namespace SwissBot
         public static ulong VerificationLogChanID { get; set; }
         public static ulong SubmissionsLogChanID { get; set; }
         public static ulong MilestonechanID { get; set; }
+        public static ulong BotAiChanID { get; set; }
 
         internal static Dictionary<string, string> jsonItemsList { get; private set; }
         internal static Dictionary<string, string> JsonItemsListDevOps { get; private set; }
@@ -54,6 +57,7 @@ namespace SwissBot
         {
             if (!Directory.Exists(MessageLogsDir)) { Directory.CreateDirectory(MessageLogsDir); }
             if (!Directory.Exists(CommandLogsDir)) { Directory.CreateDirectory(CommandLogsDir); }
+            if (!File.Exists(aiResponsePath)) { File.Create(aiResponsePath); }
 
             var data = JsonConvert.DeserializeObject<JsonItems>(File.ReadAllText(ConfigPath));
             jsonItemsList = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(ConfigPath));
@@ -86,6 +90,8 @@ namespace SwissBot
             VerificationLogChanID = data.VerificationLogChanID;
             SubmissionsLogChanID = data.SubmissionsLogChanID;
             MilestonechanID = data.MilestonechanID;
+            BotAiChanID = data.BotAiChanID;
+            StatsTotChanID = data.StatsTotChanID;
         }
         public static void SaveConfigPerms(Dictionary<string, bool> nConfigPerm)
         {
@@ -120,7 +126,7 @@ namespace SwissBot
             ConsoleLog("Saved New configPerms items. here is the new JSON \n " + jsonS + "\n Saving...", ConsoleColor.Blue);
             File.WriteAllText(ConfigSettingsPath, jsonS);
         }
-        public struct JsonItems
+        public class JsonItems
         {
             public string Token { get; set; }
             public string Status { get; set; }
@@ -143,6 +149,8 @@ namespace SwissBot
             public ulong VerificationChanID { get; set; }
             public ulong SubmissionsLogChanID { get; set; }
             public ulong MilestonechanID { get; set; }
+            public ulong BotAiChanID { get; set; }
+            public ulong StatsTotChanID { get; set; }
         }
         public static void ConsoleLog(string ConsoleMessage, ConsoleColor FColor = ConsoleColor.Green, ConsoleColor BColor = ConsoleColor.Black)
         {
@@ -151,6 +159,17 @@ namespace SwissBot
             Console.WriteLine("[" + DateTime.Now.TimeOfDay + "] - " + ConsoleMessage);
             Console.ForegroundColor = ConsoleColor.Green;
             Console.BackgroundColor = ConsoleColor.Black;
+        }
+        public static async void SendExeption(Exception ex)
+        {
+            EmbedBuilder b = new EmbedBuilder();
+            b.Color = Color.Red;
+            b.Description = $"The following info is for an Exeption, `TARGET`\n\n```{ex.TargetSite}```\n`EXEPTION`\n\n```{ex.Message}```\n`SOURCE`\n\n```{ex.Source}```\n";
+            b.Footer = new EmbedFooterBuilder();
+            b.Footer.Text = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") + " ZULU";
+            b.Title = "Bot Command Error!";
+            await Client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.DebugChanID).SendMessageAsync("", false, b.Build());
+            await Client.GetGuild(Global.SwissBotDevGuildID).GetTextChannel(622164033902084145).SendMessageAsync("", false, b.Build());
         }
         public struct UnnaprovedSubs
         {
