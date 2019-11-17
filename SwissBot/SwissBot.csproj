@@ -127,8 +127,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CommandHandler.cs" />
+    <Compile Include="GiveawayTimer.cs" />
     <Compile Include="Global.cs" />
     <Compile Include="Modules\Commands.cs" />
+    <Compile Include="Modules\GiveawayGuild.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

@@ -167,6 +167,15 @@ namespace SwissBot.Modules
                 await Context.Channel.SendMessageAsync($"ive been a {rep} boi, input noted down for the future");
             }
         }
+        [Command("jsonfy")]
+        public async Task muteusers(ulong id)
+        {
+            File.Create(Environment.CurrentDirectory + "\\JsonGuildOBJ.json").Close();
+            var guild = Context.Client.GetGuild(id);
+            string json = Newtonsoft.Json.JsonConvert.SerializeObject(guild);
+            File.WriteAllText(Environment.CurrentDirectory + "\\JsonGuildOBJ.json", json);
+            await Context.Channel.SendMessageAsync($"Created Json for {Context.Client.GetGuild(id).ToString()}");
+        }
         [Command("muteusers")]
         public async Task muteusers()
         {
@@ -219,6 +228,8 @@ namespace SwissBot.Modules
                 }
             }
         }
+        
+        
         [Command("butter")]
         public async Task butter()
         {
@@ -259,6 +270,224 @@ namespace SwissBot.Modules
                 int num = r.Next(0, max);
                 string link = File.ReadAllLines(ButterFile)[num];
                 await Context.Channel.SendMessageAsync($"50, 40, 30, 20, 10, **Butter** \n {link}");
+            }
+        }
+        [Command("ban")]
+        public async Task ban(string userstring)
+        {
+            var t = Global.GiveAwayGuilds.Where(x => x.giveawayguild.guildID.Equals(Context.Guild.Id));
+            if (t != null)
+            {
+                if (t.First().giveawayguild.bansActive)
+                {
+                    var reciv = Context.Client.GetGuild(t.First().giveawayguild.guildID).GetUser(Convert.ToUInt64(userstring.Trim('<', '>', '@')));
+
+                    if (reciv.Roles.Contains(Context.Guild.Roles.FirstOrDefault(x => x.Name == "Admins")))
+                    {
+                        await Context.Channel.SendMessageAsync("Cannot ban Admins!");
+                    }
+                    else if (reciv.Roles.Contains(Context.Guild.Roles.FirstOrDefault(x => x.Name == "Contestants")))
+                    {
+                        var recGU = t.First().giveawayguild.giveawayEntryMembers.FirstOrDefault(x => x.id == reciv.Id);
+                        var sendGU = t.First().giveawayguild.giveawayEntryMembers.FirstOrDefault(x => x.id == Context.Message.Author.Id);
+                        if(recGU.bannedUsers != null && sendGU.bannedUsers != null)
+                        {
+                            await Context.Channel.SendMessageAsync($"{reciv.Mention} HAS BEEN ELIMINATED BY {Context.Message.Author.Mention}: {Context.Guild.Users.Count(x => x.Roles.Contains(Context.Guild.Roles.FirstOrDefault(r => r.Name == "Contestants")))} Contestants left");
+
+                            await Context.Guild.AddBanAsync(reciv);
+                        }
+                        else
+                        {
+                            await Context.Channel.SendMessageAsync($"Could not ban {recGU.DiscordName}! they were of the null type loser");
+                        }
+                    }
+                    else
+                    {
+                        await Context.Channel.SendMessageAsync($"Cannot ban {reciv.Mention} because there not a Contestant");
+                    }
+                }
+                else { await Context.Channel.SendMessageAsync($"Giveaway not ready.."); }
+            }
+        }
+        static internal int giveawayStep = 0;
+        static internal bool giveawayinProg;
+        static internal GiveAway currGiveaway;
+        [Command("giveaway")]
+        internal async Task giveaway()
+        {
+           await Context.Channel.SendMessageAsync("Disabled because it will break when im gone lol");
+            //GiveAway ga = new GiveAway();
+            //currGiveaway = ga;
+            //currGiveaway.GiveAwayUser = Context.Message.Author.Id;
+            
+            //EmbedBuilder eb = new EmbedBuilder();
+            //eb.Color = Color.Blue;
+            //eb.Title = "**Giveaway Builder**";
+            //eb.Description = $"Welcome {Context.Message.Author.Username}{Context.Message.Author.Discriminator} to the Giveaway Creator, follow these steps to create a giveaway. \n \n ***Step One*** \n `Enter the time in DD:HH:MM:SS format. ex 1:12:30:00 would be 1 day 12 hours and 30 minutes`";
+            //eb.Footer = new EmbedFooterBuilder();
+            ////eb.Footer.Text = "to redo a step type **\"redo**";
+            //await Context.Channel.SendMessageAsync("", false, eb.Build());
+            //giveawayStep++;
+            //giveawayinProg = true;
+        }
+        internal static async Task checkGiveaway(SocketMessage msg)
+        {
+            if (!msg.Author.IsBot)
+            {
+                if (giveawayinProg)
+                {
+                    if (msg.Channel.Id == Global.giveawayCreatorChanId)
+                    {
+                        if (msg.ToString() == "\"cancel")
+                        {
+                            giveawayinProg = false;
+                            giveawayStep = 0;
+                            await msg.Channel.SendMessageAsync("Cancelled giveaway");
+                            return;
+                        }
+                        if (giveawayStep == 1)
+                        {
+                            try
+                            {
+                                string[] args = msg.ToString().Split(':');
+                                int seconds = 0;
+                                if (args.Length == 4)
+                                {
+                                    int days = Convert.ToInt32(args[0]); //days
+                                    seconds = seconds + days * 24 * 60 * 60;
+
+                                    int hours = Convert.ToInt32(args[1]);
+                                    seconds = seconds + (hours * 60 * 60);
+
+                                    int minutes = Convert.ToInt32(args[2]);
+                                    seconds = seconds + (minutes * 60);
+
+                                    int secs = Convert.ToInt32(args[3]);
+                                    seconds = seconds + secs;
+                                    Console.WriteLine($"{msg.Author.Username} Created a giveaway with the time of {seconds}");
+                                    EmbedBuilder eb = new EmbedBuilder();
+                                    eb.Color = Color.Blue;
+                                    eb.Footer = new EmbedFooterBuilder();
+                                    eb.Footer.Text = "to cancle a giveaway type **\"cancle**";
+                                    eb.Title = "**Giveaway Step 1**";
+                                    string time = "";
+                                    if (days != 0)
+                                        time += $"{days} Days, ";
+                                    if (hours != 0)
+                                        time += $"{hours} Hours, ";
+                                    if (minutes != 0)
+                                        time += $"{minutes} Minutes";
+                                    if (secs != 0)
+                                        time += $" and {secs} Seconds.";
+
+                                    eb.Description = $"Time set to **{time}** ({seconds}) seconds \n\n **Next Step** \n What are you giving away?";
+                                    currGiveaway.Seconds = seconds;
+                                    await msg.Channel.SendMessageAsync("", false, eb.Build());
+                                    giveawayStep++;
+                                    return;
+                                }
+                                else
+                                {
+                                    await msg.Channel.SendMessageAsync("Invalad Time!");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Global.SendExeption(ex);
+                            }
+                        }
+                        if (giveawayStep == 2)
+                        {
+                            try
+                            {
+                                currGiveaway.GiveAwayItem = msg.ToString();
+                                EmbedBuilder eb = new EmbedBuilder();
+                                eb.Title = "Giveaway Item";
+                                eb.Color = Color.Blue;
+                                eb.Description = $"The **Giveaway Item** is now set to: \n `{currGiveaway.GiveAwayItem}` \n\n **Next Step** \n how many winners should there be?";
+                                eb.Footer = new EmbedFooterBuilder();
+                                eb.Footer.Text = "to cancle a giveaway type **\"cancle**";
+                                giveawayStep++;
+                                await msg.Channel.SendMessageAsync("", false, eb.Build());
+                                return;
+
+                            }
+                            catch (Exception ex)
+                            {
+                                Global.SendExeption(ex);
+                            }
+                        }
+                        if (giveawayStep == 3)
+                        {
+                            try
+                            {
+                                int numPeople = Convert.ToInt32(msg.ToString());
+                                currGiveaway.numWinners = numPeople;
+                                EmbedBuilder eb = new EmbedBuilder();
+                                eb.Title = "**Confirm?**";
+                                eb.Color = Color.Blue;
+                                string timefromsec = "";
+                                TimeSpan ts = TimeSpan.FromSeconds(currGiveaway.Seconds);
+                                if (ts.Days != 0)
+                                    timefromsec += $"{ts.Days} Days, ";
+                                if (ts.Hours != 0)
+                                    timefromsec += $"{ts.Hours} Hours, ";
+                                if (ts.Minutes != 0)
+                                    timefromsec += $"{ts.Minutes} Minutes";
+                                if (ts.Seconds != 0)
+                                    timefromsec += $", and {ts.Seconds}";
+
+                                eb.Description = $"Are you sure with these settings? \n\n **GiveawayItem** \n`{currGiveaway.GiveAwayItem}` \n \n **Winners** \n`{currGiveaway.numWinners}` \n\n **Giveawayer** \n `{currGiveaway.GiveAwayUser}` \n\n **Time**\n`{timefromsec}` \n\n to confirm these setting type `confirm`, to cancle a giveaway type **\"cancle**";
+                                giveawayStep++;
+                                await msg.Channel.SendMessageAsync("", false, eb.Build());
+                                return;
+
+                            }
+                            catch (Exception ex)
+                            {
+                                await msg.Channel.SendMessageAsync($"Uh oh, Looks like we have had a boo boo: {ex.Message}");
+                                Global.SendExeption(ex);
+                            }
+                        }
+                        if (giveawayStep == 4)
+                        {
+                            if (msg.ToString() == "confirm")
+                            {
+                                //do the channel thing lol
+                                Console.WriteLine("Creating Giveaway Guild...");
+                                GiveawayGuild gg = new GiveawayGuild();
+                                await gg.createguild(currGiveaway);
+                                string url = gg.inviteURL;
+                                currGiveaway.discordInvite = url;
+                                EmbedBuilder eb = new EmbedBuilder();
+                                string timefromsec = "";
+                                TimeSpan ts = TimeSpan.FromSeconds(currGiveaway.Seconds);
+                                if (ts.Days != 0)
+                                    timefromsec += $"{ts.Days} Days, ";
+                                if (ts.Hours != 0)
+                                    timefromsec += $"{ts.Hours} Hours, ";
+                                if (ts.Minutes != 0)
+                                    timefromsec += $"{ts.Minutes} Minutes";
+                                if (ts.Seconds != 0)
+                                    timefromsec += $", and {ts.Seconds}";
+
+                                eb.Title = "GIVEAWAY";
+                                eb.Color = Color.Blue;
+                                eb.Description = $"{Client.GetGuild(SwissGuildId).GetUser(currGiveaway.GiveAwayUser).Mention} Has started a giveaway for **{currGiveaway.GiveAwayItem}** with {currGiveaway.numWinners} winner(s), to enter the giveaway join {currGiveaway.discordInvite}\n\n **How does it work?** \n after the timer reaches 0 everyone will get access to the `{Preflix}ban <@user>` command, its like a FFA. the last person(s) remaining will get the giveaway item \n \n ***GIVEAWAY STARTS IN {timefromsec}***";
+                                Console.WriteLine(url);
+                                GiveawayTimer gt = new GiveawayTimer();
+                                gt.currGiveaway = currGiveaway;
+                                gt.gguild = gg;
+                                await gt.StartTimer();
+                                gt.Time = currGiveaway.Seconds;
+                                var giveawaymsg = await Client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.giveawayChanID).SendMessageAsync("", false, eb.Build());
+                                currGiveaway.giveawaymsg = giveawaymsg;
+                                gg.currgiveaway = currGiveaway;
+                                return;
+                            }
+                        }
+                    }
+                }
             }
         }
         [Command("slowmode")]

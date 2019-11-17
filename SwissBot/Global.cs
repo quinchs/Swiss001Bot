@@ -45,14 +45,63 @@ namespace SwissBot
         public static ulong MemberRoleID { get; set; }
         public static ulong UnverifiedRoleID { get; set; }
         public static ulong VerificationChanID { get; set; }
+        public static List<GiveAway> GiveAwayGuilds { get; set; }
         public static ulong VerificationLogChanID { get; set; }
         public static ulong SubmissionsLogChanID { get; set; }
         public static ulong MilestonechanID { get; set; }
+        public static ulong giveawayCreatorChanId { get; set; }
+        public static ulong giveawayChanID { get; set; }
         public static ulong BotAiChanID { get; set; }
-
         internal static Dictionary<string, string> jsonItemsList { get; private set; }
         internal static Dictionary<string, string> JsonItemsListDevOps { get; private set; }
+        public struct GiveAway
+        {
+            public int Seconds { get; set; }
+            public string GiveAwayItem { get; set; }
+            public ulong GiveAwayUser { get; set; }
+            public string discordInvite { get; set; }
+            public int numWinners { get; set; }
+            public RestUserMessage giveawaymsg { get; set; }
+            public GiveawayGuildObj giveawayguild { get; set; }
+        }
+        public class GiveawayGuildObj
+        {
+            public ulong guildID { get; set; }
+            public bool bansActive { get; set; }
+            public List<GiveawayUser> giveawayEntryMembers { get; set; }
+            public RestGuild guildOBJ { get; set; }
+            public GiveawayGuildObj create(RestGuild guild)
+            {
+                this.guildID = guild.Id;
+                this.bansActive = false;
+                giveawayEntryMembers = new List<GiveawayUser>();
+                guildOBJ = guild;
+                return this;
+            }
+            public void startBans() { this.bansActive = true; }
 
+            public void removeUser(GiveawayUser bannedUser, GiveawayUser remainingUser)
+            {
+                if(giveawayEntryMembers.Contains(bannedUser))
+                {
+                    if(giveawayEntryMembers.Contains(remainingUser))
+                    {
+                        remainingUser.bans++;
+                        remainingUser.bannedUsers.Add(bannedUser);
+                        giveawayEntryMembers.Remove(bannedUser);
+                    }
+                }
+            }
+        }
+        public class GiveawayUser
+        {
+            public int bans { get; set; }
+            public string DiscordName { get; set; }
+            public SocketGuildUser user { get; set; }
+            public ulong id { get; set; }
+            public List<GiveawayUser> bannedUsers { get; set; }
+            
+        }
         public static void ReadConfig()
         {
             if (!Directory.Exists(MessageLogsDir)) { Directory.CreateDirectory(MessageLogsDir); }
@@ -74,6 +123,8 @@ namespace SwissBot
             WelcomeMessage = data.WelcomeMessage;
             WelcomeMessageURL = data.WelcomeMessageURL;
             Status = data.Status;
+            giveawayChanID = data.giveawayChanID;
+            giveawayCreatorChanId = data.giveawayCreatorChanId;
             Token = data.Token;
             StatsChanID = data.StatsChanID;
             SwissGuildId = data.SwissGuildID;
@@ -151,6 +202,8 @@ namespace SwissBot
             public ulong MilestonechanID { get; set; }
             public ulong BotAiChanID { get; set; }
             public ulong StatsTotChanID { get; set; }
+            public ulong giveawayChanID { get; set; }
+            public ulong giveawayCreatorChanId { get; set; }
         }
         public static void ConsoleLog(string ConsoleMessage, ConsoleColor FColor = ConsoleColor.Green, ConsoleColor BColor = ConsoleColor.Black)
         {

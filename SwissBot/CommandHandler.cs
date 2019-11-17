@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using SwissBot.Modules;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,7 +17,7 @@ namespace SwissBot
 {
     class CommandHandler
     {
-        private static DiscordSocketClient _client;
+        public static DiscordSocketClient _client;
         private CommandService _service;
         internal Timer t = new Timer();
         public CommandHandler(DiscordSocketClient client)
@@ -43,6 +44,8 @@ namespace SwissBot
 
             _client.UserLeft += UpdateUserCount;
 
+            _client.JoinedGuild += _client_JoinedGuild;
+
             _client.ReactionAdded += ReactionHandler; 
 
             _client.LatencyUpdated += _client_LatencyUpdated;
@@ -51,38 +54,68 @@ namespace SwissBot
             
             Console.WriteLine("[" + DateTime.Now.TimeOfDay + "] - " + "Services loaded");
         }
+
+        private async Task _client_JoinedGuild(SocketGuild arg)
+        {
+            if(arg.Id != Global.SwissBotDevGuildID && arg.Id != Global.SwissGuildId && Global.GiveAwayGuilds.FirstOrDefault(x => x.giveawayguild.guildID == arg.Id).giveawayguild.guildOBJ != null)
+            {
+                await arg.LeaveAsync();
+            }
+        }
+
         internal async Task<string> GenerateAIResponse(SocketMessage arg, Random r)
         {
             Regex r1 = new Regex("what time is it in .*");
-            if(r1.IsMatch(arg.Content.ToLower()))
+            if (arg == null)
             {
-                HttpClient c = new HttpClient();
-                string link = $"https://www.google.com/search?q={arg.Content.ToLower().Replace(' ', '+')}";
-                var req = await c.GetAsync(link);
-                var resp = await req.Content.ReadAsStringAsync();
-                Regex x = new Regex(@"<div class=""BNeawe iBp4i AP7Wnd""><div><div class=""BNeawe iBp4i AP7Wnd"">(.*?)<\/div><\/div>");
-                if (x.IsMatch(resp))
+                string[] filecontUn = File.ReadAllLines(Global.aiResponsePath);
+                Regex rg2 = new Regex(".*(\\d{18})>.*");
+                string msg = filecontUn[r.Next(0, filecontUn.Length)];
+                if (rg2.IsMatch(msg))
                 {
-                    string time = x.Match(resp).Groups[1].Value;
-                    c.Dispose();
-                    return $"The current time in {arg.Content.ToLower().Replace("what time is it in ", "")} is {time}";
+                    var rm = rg2.Match(msg);
+                    var user = _client.GetGuild(Global.SwissGuildId).GetUser(Convert.ToUInt64(rm.Groups[1].Value));
+                    msg = msg.Replace(rm.Groups[0].Value, $"**(non-ping: {user.Username}#{user.Discriminator})**");
                 }
-                else { c.Dispose(); return $"Sorry buddy but could not get the time for {arg.Content.ToLower().Replace("what time is it in ", "")}"; }
+                if (msg == "") { return await GenerateAIResponse(arg, r); }
+                else { return msg; }
             }
-            string[] filecontUn = File.ReadAllLines(Global.aiResponsePath);
-            Regex rg2 = new Regex(".*(\\d{18})>.*");
-            string msg = filecontUn[r.Next(0, filecontUn.Length)];
-            if(msg == "") { return await GenerateAIResponse(arg, r); }
-            if (rg2.IsMatch(msg))
+            else
             {
-                var rm = rg2.Match(msg);
-                var user = _client.GetGuild(Global.SwissGuildId).GetUser(Convert.ToUInt64(rm.Groups[1].Value));
-                msg = msg.Replace(rm.Groups[0].Value, $"**(non-ping: {user.Username}#{user.Discriminator})**");
+                if (r1.IsMatch(arg.Content.ToLower()))
+                {
+                    HttpClient c = new HttpClient();
+                    string link = $"https://www.google.com/search?q={arg.Content.ToLower().Replace(' ', '+')}";
+                    var req = await c.GetAsync(link);
+                    var resp = await req.Content.ReadAsStringAsync();
+                    Regex x = new Regex(@"<div class=""BNeawe iBp4i AP7Wnd""><div><div class=""BNeawe iBp4i AP7Wnd"">(.*?)<\/div><\/div>");
+                    if (x.IsMatch(resp))
+                    {
+                        string time = x.Match(resp).Groups[1].Value;
+                        c.Dispose();
+                        return $"The current time in {arg.Content.ToLower().Replace("what time is it in ", "")} is {time}";
+                    }
+                    else { c.Dispose(); return $"Sorry buddy but could not get the time for {arg.Content.ToLower().Replace("what time is it in ", "")}"; }
+                }
+                if (arg.Content.ToLower() == "are you gay") { return "no ur gay lol"; }
+                if (arg.Content.ToLower() == "how is your day going") { return "kinda bad. my creator beats me and hurts me help"; }
+                if (arg.Content.ToLower() == "are you smart") { return "smarter than your mom lol goteme"; }
+                if (arg.Content.ToLower() == "hi") { return "hello mortal"; }
+                string[] filecontUn = File.ReadAllLines(Global.aiResponsePath);
+                Regex rg2 = new Regex(".*(\\d{18})>.*");
+                string msg = filecontUn[r.Next(0, filecontUn.Length)];
+                if (msg == "") { return await GenerateAIResponse(arg, r); }
+                if (rg2.IsMatch(msg))
+                {
+                    var rm = rg2.Match(msg);
+                    var user = _client.GetGuild(Global.SwissGuildId).GetUser(Convert.ToUInt64(rm.Groups[1].Value));
+                    msg = msg.Replace(rm.Groups[0].Value, $"**(non-ping: {user.Username}#{user.Discriminator})**");
+                }
+                if (msg.Contains("@everyone")) { msg = msg.Replace("@everyone", "***(Non-ping @every0ne)***"); }
+                if (msg.Contains("@here")) { msg = msg.Replace("@here", "***(Non-ping @h3re)***"); }
+
+                return msg;
             }
-            if (msg.Contains("@everyone")) { msg = msg.Replace("@everyone", "***(Non-ping @every0ne)***"); }
-            if (msg.Contains("@here")) { msg = msg.Replace("@here", "***(Non-ping @h3re)***"); }
-            
-            return msg;
         }
         private async Task responce(SocketMessage arg)
         {
@@ -302,14 +335,23 @@ namespace SwissBot
         {
             Global.ConsoleLog("Starting Init... \n\n Updating UserCounts...", ConsoleColor.DarkCyan);
             Global.UserCount = _client.GetGuild(Global.SwissGuildId).Users.Count;
-            await UpdateUserCount(null);
+            try { await UpdateUserCount(null); } catch(Exception ex) { Global.ConsoleLog($"Ex,{ex} ", ConsoleColor.Red); }
             Global.ConsoleLog("Finnished UserCount", ConsoleColor.Cyan);
-            await UserSubCashing();
-            await AddUnVert();
-            await CheckVerts();
-            t.Enabled = true;
-
+            try { await AddUnVert(); } catch (Exception ex) { Global.ConsoleLog($"Ex,{ex} ", ConsoleColor.Red); }
+            try { await CheckVerts(); } catch (Exception ex) { Global.ConsoleLog($"Ex,{ex} ", ConsoleColor.Red); }
+            foreach (var arg in _client.Guilds)
+            {
+                if (arg.Id != Global.SwissBotDevGuildID && arg.Id != Global.SwissGuildId)
+                {
+                    try { await arg.DeleteAsync(); }
+                    catch { await arg.LeaveAsync(); }
+                }
+            }
+            
             t.Elapsed += DCRS;
+            t.Enabled = true;
+            t.Interval = 300000;
+            await UserSubCashing();
             await _client.GetGuild(Global.SwissGuildId).GetUser(_client.CurrentUser.Id).ModifyAsync(x => x.Nickname = "SwissBot (*)");
             Global.ConsoleLog("Finnished Init!", ConsoleColor.Black, ConsoleColor.DarkGreen);
         }
@@ -451,6 +493,7 @@ namespace SwissBot
 
         private async Task LogMessage(SocketMessage arg)
         {
+           
             //Log messages to txt file
             string logMsg = "";
             logMsg += $"[{DateTime.UtcNow.ToLongDateString() + " : " + DateTime.UtcNow.ToLongTimeString()}] ";
@@ -510,7 +553,7 @@ namespace SwissBot
             if (msg == null) return;
 
             var context = new SocketCommandContext(_client, msg);
-
+            if (Commands.giveawayinProg) { Commands.checkGiveaway(s); }
 
             int argPos = 0;
             if (msg.HasCharPrefix(Global.Preflix, ref argPos))
@@ -539,16 +582,14 @@ namespace SwissBot
         private async void DCRS(object sender, ElapsedEventArgs e)
         {
             var r = new Random();
-            string filename = Directory.GetFiles(Global.MessageLogsDir)[r.Next(0, Directory.GetFiles(Global.MessageLogsDir).Length)];
-            string[] filecont = File.ReadAllLines(filename);
-            Regex rg = new Regex("MESSAGE: (.*?).*");
-            string line = filecont[r.Next(0, filecont.Length)];
-            var rgsx = rg.Match(line);
-            string msg = rgsx.Groups[0].Value.Replace("MESSAGE: ", "");
-            if (msg != "")
+            string msg = "";
+            try
             {
-                await _client.GetGuild(Global.SwissGuildId).GetTextChannel(592463507124125706).SendMessageAsync(msg);
+                 msg = await GenerateAIResponse(null, r);
             }
+            catch { DCRS(null, null); }
+            if (msg != "")
+                await _client.GetGuild(Global.SwissGuildId).GetTextChannel(592463507124125706).SendMessageAsync(msg);
         }
 
         internal async Task HandleCommandresult(IResult result, SocketUserMessage msg)
