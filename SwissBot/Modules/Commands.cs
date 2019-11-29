@@ -2,8 +2,11 @@
 using Discord.Commands;
 using Discord.Rest;
 using Discord.WebSocket;
+using Newtonsoft.Json;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -170,11 +173,199 @@ namespace SwissBot.Modules
         [Command("jsonfy")]
         public async Task muteusers(ulong id)
         {
-            File.Create(Environment.CurrentDirectory + "\\JsonGuildOBJ.json").Close();
-            var guild = Context.Client.GetGuild(id);
-            string json = Newtonsoft.Json.JsonConvert.SerializeObject(guild);
-            File.WriteAllText(Environment.CurrentDirectory + "\\JsonGuildOBJ.json", json);
-            await Context.Channel.SendMessageAsync($"Created Json for {Context.Client.GetGuild(id).ToString()}");
+            var r = Context.Guild.GetUser(Context.Message.Author.Id).Roles;
+            var adminrolepos = Context.Guild.Roles.FirstOrDefault(x => x.Id == Global.ModeratorRoleID).Position;
+            var rolepos = r.FirstOrDefault(x => x.Position >= adminrolepos);
+            if (rolepos != null || r.Contains(Context.Guild.Roles.FirstOrDefault(x => x.Id == 622156934778454016)))
+            {
+                var guild = Context.Client.GetGuild(id);
+
+                JsonGuildObj obj = new JsonGuildObj()
+                {
+                    AFKChannel = new VoiceChannels()
+                    {
+                        Name = guild.AFKChannel.Name,
+                        Bitrate = guild.AFKChannel.Bitrate,
+                        CategoryName = guild.AFKChannel.Category.Name,
+                        PermissionOverwrites = guild.AFKChannel.PermissionOverwrites,
+                        Position = guild.AFKChannel.Position,
+                        UserLimit = guild.AFKChannel.UserLimit
+                    },
+                    SocketCategory = await GetCategoryChannel(guild.CategoryChannels),
+                    AFKTimeout = guild.AFKTimeout,
+                    textChannels = await GetTextChannels(guild.TextChannels),
+                    VoiceChannels = await GetVoiceChannels(guild.VoiceChannels),
+                    DefaultChannel = new TextChannels()
+                    {
+                        Name = guild.DefaultChannel.Name,
+                        Position = guild.DefaultChannel.Position,
+                        PermissionOverwrites = guild.DefaultChannel.PermissionOverwrites,
+                        CategoryName = guild.DefaultChannel.Category.Name,
+                        IsNsfw = guild.DefaultChannel.IsNsfw,
+                        SlowModeInterval = guild.DefaultChannel.SlowModeInterval,
+                        Topic = guild.DefaultChannel.Topic
+                    },
+                    IconURL = guild.IconUrl,
+                    name = guild.Name,
+                    roles = await GetRoles(guild.Roles)
+                };
+                string json = JsonConvert.SerializeObject(obj, Formatting.Indented);
+                File.Create($"{Environment.CurrentDirectory}//Data//{id}.json").Close();
+                File.WriteAllText($"{Environment.CurrentDirectory}//Data//{id}.json", json);
+                await Context.Channel.SendFileAsync($"{Environment.CurrentDirectory}//Data//{id}.json", $"Here is the Json object of {guild.Name}!");
+
+            }
+
+        }
+        public struct JsonGuildObj
+        {
+            public string name { get; set; }
+            public string IconURL { get; set; }
+            public VoiceChannels AFKChannel { get; set; }
+            public int AFKTimeout { get; set; }
+            public TextChannels DefaultChannel { get; set; }
+            public List<CategoryChannel> SocketCategory { get; set; }
+            public List<Roles> roles { get; set; }
+            public List<TextChannels> textChannels { get; set; }
+            public List<VoiceChannels> VoiceChannels { get; set; }
+        }
+        
+        public async Task<List<Roles>> GetRoles(IReadOnlyCollection<SocketRole> roles)
+        {
+            List<Roles> l = new List<Roles>();
+            foreach(var role in roles)
+            {
+                Roles r = new Roles()
+                {
+                    Color = role.Color,
+                    IsEveryone = role.IsEveryone,
+                    IsHoisted = role.IsHoisted,
+                    IsManaged = role.IsManaged,
+                    IsMentionable = role.IsMentionable,
+                    Name = role.Name,
+                    Permissions = role.Permissions,
+                    Position = role.Position
+                };
+                l.Add(r);
+            }
+            return l;
+        }
+        public async Task<List<VoiceChannels>> GetVoiceChannels(IReadOnlyCollection<SocketVoiceChannel> VoiceChannels)
+        {
+            List<VoiceChannels> l = new List<VoiceChannels>();
+            foreach (var chan in VoiceChannels)
+            {
+                VoiceChannels c = new VoiceChannels()
+                {
+                    Bitrate = chan.Bitrate,
+                    CategoryName = chan.Category.Name,
+                    Name = chan.Name,
+                    PermissionOverwrites = chan.PermissionOverwrites,
+                    Position = chan.Position,
+                    UserLimit = chan.UserLimit
+                };
+
+                l.Add(c);
+            }
+            return l;
+        }
+        public async Task<List<CategoryChannel>> GetCategoryChannel(IReadOnlyCollection<SocketCategoryChannel> CategoryChannel)
+        {
+            List<CategoryChannel> l = new List<CategoryChannel>();
+            foreach (var chan in CategoryChannel)
+            {
+                CategoryChannel c = new CategoryChannel()
+                {
+                    
+                    Name = chan.Name,
+                    PermissionOverwrites = chan.PermissionOverwrites,
+                    Position = chan.Position,
+                };
+                List<string> chanNames = new List<string>();
+                foreach(var chanl in chan.Channels)
+                    chanNames.Add(chanl.Name);
+                c.ChannelsName = chanNames;
+                l.Add(c);
+            }
+            return l;
+        }
+        public async Task<List<TextChannels>> GetTextChannels(IReadOnlyCollection<SocketTextChannel> TextChannels)
+        {
+            List<TextChannels> l = new List<TextChannels>();
+            foreach(var chan in TextChannels)
+            {
+                try
+                {
+                    var d = chan.PermissionOverwrites;
+                    TextChannels c = new TextChannels()
+                    {
+                        CategoryName = chan.Category.Name,
+                        Topic = chan.Topic,
+                        IsNsfw = chan.IsNsfw,
+                        Name = chan.Name,
+                        PermissionOverwrites = chan.PermissionOverwrites,
+                        Position = chan.Position,
+                        SlowModeInterval = chan.SlowModeInterval
+                    };
+                    l.Add(c);
+                }
+                catch(Exception ex)
+                {
+                    TextChannels c = new TextChannels()
+                    {
+                        CategoryName = chan.Category.Name,
+                        Topic = chan.Topic,
+                        IsNsfw = chan.IsNsfw,
+                        Name = chan.Name,
+                        PermissionOverwrites = null,
+                        Position = chan.Position,
+                        SlowModeInterval = 0
+                    };
+                    l.Add(c);
+                }
+                
+
+                
+            }
+            return l;
+        }
+        public struct CategoryChannel
+        {
+            public List<string> ChannelsName { get; set; }
+            public string Name { get; set; }
+            public IReadOnlyCollection<Overwrite> PermissionOverwrites { get; set; }
+            public int Position { get; set; }
+
+        }
+        public struct TextChannels
+        {
+            public string CategoryName { get; set; }
+            public bool IsNsfw { get; set; }
+            public string Name { get; set; }
+            public IReadOnlyCollection<Overwrite> PermissionOverwrites { get; set; }
+            public int Position { get; set; }
+            public int SlowModeInterval { get; set; }
+            public string Topic { get; set; }
+        }
+        public struct VoiceChannels
+        {
+            public string CategoryName { get; set; }
+            public string Name { get; set; }
+            public IReadOnlyCollection<Overwrite> PermissionOverwrites { get; set; }
+            public int Position { get; set; }
+            public int? UserLimit { get; set; }
+            public int Bitrate { get; set; }
+        }
+        public struct Roles
+        {
+            public Color Color { get; set; }
+            public string Name { get; set; }
+            public int Position { get; set; }
+            public bool IsEveryone { get; set; }
+            public bool IsHoisted { get; set; }
+            public bool IsManaged { get; set; }
+            public bool IsMentionable { get; set; }
+            public GuildPermissions Permissions { get; set; }
         }
         [Command("muteusers")]
         public async Task muteusers()

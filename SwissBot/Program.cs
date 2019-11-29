@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SwissBot
@@ -12,7 +13,20 @@ namespace SwissBot
     class Program
     {
         static void Main(string[] args)
-        => new Program().StartAsync().GetAwaiter().GetResult();
+        {
+            while (true)
+            {
+                try
+                {
+                    new Program().StartAsync().GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    Global.ConsoleLog($"Exception: {ex}\n\n Retrying...", ConsoleColor.Red, ConsoleColor.Black);
+                    Thread.Sleep(5000);
+                }
+            }
+        }
         private DiscordSocketClient _client;
         private CommandService _commands;
         private CommandHandler _handler;

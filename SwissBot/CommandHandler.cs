@@ -12,6 +12,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Timers;
+using Google.Apis.YouTube.v3;
+using Google.Apis.Services;
 
 namespace SwissBot
 {
@@ -60,6 +62,7 @@ namespace SwissBot
             if(arg.Id != Global.SwissBotDevGuildID && arg.Id != Global.SwissGuildId && Global.GiveAwayGuilds.FirstOrDefault(x => x.giveawayguild.guildID == arg.Id).giveawayguild.guildOBJ != null)
             {
                 await arg.LeaveAsync();
+                
             }
         }
 
@@ -69,52 +72,73 @@ namespace SwissBot
             if (arg == null)
             {
                 string[] filecontUn = File.ReadAllLines(Global.aiResponsePath);
+                var list = filecontUn.ToList();
+                var d = list.FirstOrDefault(x => x.ToLower() == arg.Content);
                 Regex rg2 = new Regex(".*(\\d{18})>.*");
                 string msg = filecontUn[r.Next(0, filecontUn.Length)];
+                if (d != "") { msg = d; }
                 if (rg2.IsMatch(msg))
                 {
                     var rm = rg2.Match(msg);
                     var user = _client.GetGuild(Global.SwissGuildId).GetUser(Convert.ToUInt64(rm.Groups[1].Value));
                     msg = msg.Replace(rm.Groups[0].Value, $"**(non-ping: {user.Username}#{user.Discriminator})**");
                 }
-                if (msg == "") { return await GenerateAIResponse(arg, r); }
+                if (msg == "") { return filecontUn[r.Next(0, filecontUn.Length)]; }
                 else { return msg; }
             }
             else
             {
-                if (r1.IsMatch(arg.Content.ToLower()))
+                try
                 {
-                    HttpClient c = new HttpClient();
-                    string link = $"https://www.google.com/search?q={arg.Content.ToLower().Replace(' ', '+')}";
-                    var req = await c.GetAsync(link);
-                    var resp = await req.Content.ReadAsStringAsync();
-                    Regex x = new Regex(@"<div class=""BNeawe iBp4i AP7Wnd""><div><div class=""BNeawe iBp4i AP7Wnd"">(.*?)<\/div><\/div>");
-                    if (x.IsMatch(resp))
+                    if (r1.IsMatch(arg.Content.ToLower()))
                     {
-                        string time = x.Match(resp).Groups[1].Value;
-                        c.Dispose();
-                        return $"The current time in {arg.Content.ToLower().Replace("what time is it in ", "")} is {time}";
+                        HttpClient c = new HttpClient();
+                        string link = $"https://www.google.com/search?q={arg.Content.ToLower().Replace(' ', '+')}";
+                        var req = await c.GetAsync(link);
+                        var resp = await req.Content.ReadAsStringAsync();
+                        Regex x = new Regex(@"<div class=""BNeawe iBp4i AP7Wnd""><div><div class=""BNeawe iBp4i AP7Wnd"">(.*?)<\/div><\/div>");
+                        if (x.IsMatch(resp))
+                        {
+                            string time = x.Match(resp).Groups[1].Value;
+                            c.Dispose();
+                            return $"The current time in {arg.Content.ToLower().Replace("what time is it in ", "")} is {time}";
+                        }
+                        else { c.Dispose(); return $"Sorry buddy but could not get the time for {arg.Content.ToLower().Replace("what time is it in ", "")}"; }
                     }
-                    else { c.Dispose(); return $"Sorry buddy but could not get the time for {arg.Content.ToLower().Replace("what time is it in ", "")}"; }
+                    if (arg.Content.ToLower() == "are you gay") { return "no ur gay lol"; }
+                    if (arg.Content.ToLower() == "how is your day going") { return "kinda bad. my creator beats me and hurts me help"; }
+                    if (arg.Content.ToLower() == "are you smart") { return "smarter than your mom lol goteme"; }
+                    if (arg.Content.ToLower() == "hi") { return "hello mortal"; }
+                    string[] filecontUn = File.ReadAllLines(Global.aiResponsePath);
+                    Regex rg2 = new Regex(".*(\\d{18})>.*");
+                    string msg = filecontUn[r.Next(0, filecontUn.Length)];
+                    if (msg != "")
+                    {
+                        var ar = filecontUn.Select((b, i) => b == arg.Content ? i : -1).Where(i => i != -1).ToArray();
+                        Random ran = new Random();
+                        if(ar.Length != 0)
+                        {
+                            var ind = (ar[ran.Next(0, ar.Length)]);
+                            if (ind != 0 && (ind + 1) < filecontUn.Length)
+                                msg = filecontUn[ind + 1];
+                        }
+                    }
+                    if (msg == "") { msg = filecontUn[r.Next(0, filecontUn.Length)]; }
+                    if (rg2.IsMatch(msg))
+                    {
+                        var rm = rg2.Match(msg);
+                        var user = _client.GetGuild(Global.SwissGuildId).GetUser(Convert.ToUInt64(rm.Groups[1].Value));
+                        msg = msg.Replace(rm.Groups[0].Value, $"**(non-ping: {user.Username}#{user.Discriminator})**");
+                    }
+                    if (msg.Contains("@everyone")) { msg = msg.Replace("@everyone", "***(Non-ping @every0ne)***"); }
+                    if (msg.Contains("@here")) { msg = msg.Replace("@here", "***(Non-ping @h3re)***"); }
+                    return msg;
                 }
-                if (arg.Content.ToLower() == "are you gay") { return "no ur gay lol"; }
-                if (arg.Content.ToLower() == "how is your day going") { return "kinda bad. my creator beats me and hurts me help"; }
-                if (arg.Content.ToLower() == "are you smart") { return "smarter than your mom lol goteme"; }
-                if (arg.Content.ToLower() == "hi") { return "hello mortal"; }
-                string[] filecontUn = File.ReadAllLines(Global.aiResponsePath);
-                Regex rg2 = new Regex(".*(\\d{18})>.*");
-                string msg = filecontUn[r.Next(0, filecontUn.Length)];
-                if (msg == "") { return await GenerateAIResponse(arg, r); }
-                if (rg2.IsMatch(msg))
+                catch(Exception ex)
                 {
-                    var rm = rg2.Match(msg);
-                    var user = _client.GetGuild(Global.SwissGuildId).GetUser(Convert.ToUInt64(rm.Groups[1].Value));
-                    msg = msg.Replace(rm.Groups[0].Value, $"**(non-ping: {user.Username}#{user.Discriminator})**");
+                    Console.WriteLine(ex);
+                    return "uh oh ai broke stinkie";
                 }
-                if (msg.Contains("@everyone")) { msg = msg.Replace("@everyone", "***(Non-ping @every0ne)***"); }
-                if (msg.Contains("@here")) { msg = msg.Replace("@here", "***(Non-ping @h3re)***"); }
-
-                return msg;
             }
         }
         private async Task responce(SocketMessage arg)
@@ -264,9 +288,9 @@ namespace SwissBot
         private async Task _client_LatencyUpdated(int arg1, int arg2)
         {
             await UpdateUserCount(null);
-            if(_client.GetGuild(Global.SwissGuildId).GetUser(_client.CurrentUser.Id).Nickname != "SwissBot (*)")
+            if(_client.GetGuild(Global.SwissGuildId).GetUser(_client.CurrentUser.Id).Nickname != "SwissBot ( * )")
             {
-                await _client.GetGuild(Global.SwissGuildId).GetUser(_client.CurrentUser.Id).ModifyAsync(x => x.Nickname = "SwissBot (*)");
+                await _client.GetGuild(Global.SwissGuildId).GetUser(_client.CurrentUser.Id).ModifyAsync(x => x.Nickname = "SwissBot ( * )");
             }
         }
 
@@ -352,8 +376,51 @@ namespace SwissBot
             t.Enabled = true;
             t.Interval = 300000;
             await UserSubCashing();
-            await _client.GetGuild(Global.SwissGuildId).GetUser(_client.CurrentUser.Id).ModifyAsync(x => x.Nickname = "SwissBot (*)");
+            await MassWelcome();
             Global.ConsoleLog("Finnished Init!", ConsoleColor.Black, ConsoleColor.DarkGreen);
+        }
+        private async Task MassWelcome()
+        {
+            var users = _client.GetGuild(Global.SwissGuildId).Users.Where(x => x.Roles.Contains(_client.GetGuild(Global.SwissGuildId).Roles.FirstOrDefault(x2 => x2.Id == 627683033151176744)) && x.Roles.Count == 2);
+            foreach(var arg3 in users)
+            {
+                var user = _client.GetGuild(Global.SwissGuildId).GetUser(arg3.Id);
+                var unVertRole = _client.GetGuild(Global.SwissGuildId).Roles.FirstOrDefault(x => x.Id == Global.UnverifiedRoleID);
+                if (user.Roles.Contains(unVertRole))
+                {
+                    var userRole = _client.GetGuild(Global.SwissGuildId).Roles.FirstOrDefault(x => x.Id == Global.MemberRoleID);
+                    await user.AddRoleAsync(userRole);
+                    Console.WriteLine($"Verified user {user.Username}#{user.Discriminator}");
+                    EmbedBuilder eb2 = new EmbedBuilder()
+                    {
+                        Title = $"Verified {user.Mention}",
+                        Color = Color.Green,
+                        Footer = new EmbedFooterBuilder()
+                        {
+                            IconUrl = user.GetAvatarUrl(),
+                            Text = $"{user.Username}#{user.Discriminator}"
+                        },
+                    };
+                    var chan = _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.VerificationLogChanID);
+                    await chan.SendMessageAsync("", false, eb2.Build());
+                    await user.RemoveRoleAsync(unVertRole);
+                    string welcomeMessage = WelcomeMessageBuilder(Global.WelcomeMessage, user);
+                    EmbedBuilder eb = new EmbedBuilder()
+                    {
+                        Title = $"***Welcome to Swiss001's Discord server!***",
+                        Footer = new EmbedFooterBuilder()
+                        {
+                            IconUrl = user.GetAvatarUrl(),
+                            Text = $"{user.Username}#{user.Discriminator}"
+                        },
+                        Description = welcomeMessage,
+                        ThumbnailUrl = Global.WelcomeMessageURL,
+                        Color = Color.Green
+                    };
+                    await _client.GetGuild(Global.SwissGuildId).GetTextChannel(648608707826941963).SendMessageAsync("", false, eb.Build());
+                    Global.ConsoleLog($"WelcomeMessage for {user.Username}#{user.Discriminator}", ConsoleColor.Blue);
+                }
+            }
         }
         private async Task CheckVerts()
         {
@@ -493,34 +560,44 @@ namespace SwissBot
 
         private async Task LogMessage(SocketMessage arg)
         {
-           
-            //Log messages to txt file
-            string logMsg = "";
-            logMsg += $"[{DateTime.UtcNow.ToLongDateString() + " : " + DateTime.UtcNow.ToLongTimeString()}] ";
-            logMsg += $"USER: {arg.Author.Username}#{arg.Author.Discriminator} CHANNEL: {arg.Channel.Name} MESSAGE: {arg.Content}";
-            var name = DateTime.Now.Day + "_" + DateTime.Now.Month + "_" + DateTime.Now.Year;
-            if (File.Exists(Global.MessageLogsDir + $"\\{name}.txt"))
+            try
             {
-                string curr = File.ReadAllText(Global.MessageLogsDir + $"\\{name}.txt");
-                File.WriteAllText(Global.MessageLogsDir + $"\\{name}.txt", $"{curr}\n{logMsg}");
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.WriteLine($"Logged message (from {arg.Author.Username})");
-                Console.ForegroundColor = ConsoleColor.DarkGreen;
+                if (arg.Content.Contains("discord.gg/") || arg.Content.Contains("discordapp.com/invite/"))
+                {
+
+                }
+                //Log messages to txt file
+                string logMsg = "";
+                logMsg += $"[{DateTime.UtcNow.ToLongDateString() + " : " + DateTime.UtcNow.ToLongTimeString()}] ";
+                logMsg += $"USER: {arg.Author.Username}#{arg.Author.Discriminator} CHANNEL: {arg.Channel.Name} MESSAGE: {arg.Content}";
+                var name = DateTime.Now.Day + "_" + DateTime.Now.Month + "_" + DateTime.Now.Year;
+                if (File.Exists(Global.MessageLogsDir + $"\\{name}.txt"))
+                {
+                    string curr = File.ReadAllText(Global.MessageLogsDir + $"\\{name}.txt");
+                    File.WriteAllText(Global.MessageLogsDir + $"\\{name}.txt", $"{curr}\n{logMsg}");
+                    Console.ForegroundColor = ConsoleColor.Magenta;
+                    Console.WriteLine($"Logged message (from {arg.Author.Username})");
+                    Console.ForegroundColor = ConsoleColor.DarkGreen;
+                }
+                else
+                {
+                    File.Create(Global.MessageLogsDir + $"\\{name}.txt").Close();
+                    File.WriteAllText(Global.MessageLogsDir + $"\\{name}.txt", $"{logMsg}");
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"Logged message (from {arg.Author.Username}) and created new logfile");
+                    Console.ForegroundColor = ConsoleColor.DarkGreen;
+                }
+                if (arg.Channel.Id == 592463507124125706)
+                {
+                    string cont = File.ReadAllText(Global.aiResponsePath);
+                    if (cont == "") { cont = arg.Content; }
+                    else { cont += $"\n{arg.Content}"; }
+                    File.WriteAllText(Global.aiResponsePath, cont);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                File.Create(Global.MessageLogsDir + $"\\{name}.txt").Close();
-                File.WriteAllText(Global.MessageLogsDir + $"\\{name}.txt", $"{logMsg}");
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"Logged message (from {arg.Author.Username}) and created new logfile");
-                Console.ForegroundColor = ConsoleColor.DarkGreen;
-            }
-            if(arg.Channel.Id == 592463507124125706)
-            {
-                string cont = File.ReadAllText(Global.aiResponsePath);
-                if (cont == "") { cont = arg.Content; }
-                else { cont += $"\n{arg.Content}"; }
-                File.WriteAllText(Global.aiResponsePath, cont);
+                Console.WriteLine(ex);
             }
         }
         public async Task EchoMessage(SocketCommandContext Context)
@@ -540,45 +617,60 @@ namespace SwissBot
         }
         public async Task HandleCommandAsync(SocketMessage s)
         {
-            if(s.Channel.Id == 592463507124125706)
+            try
             {
-                t.Stop();
-                t.AutoReset = true;
-                t.Enabled = true;
-                t.Interval = 300000;
-                t.Start();
-            }
-
-            var msg = s as SocketUserMessage;
-            if (msg == null) return;
-
-            var context = new SocketCommandContext(_client, msg);
-            if (Commands.giveawayinProg) { Commands.checkGiveaway(s); }
-
-            int argPos = 0;
-            if (msg.HasCharPrefix(Global.Preflix, ref argPos))
-            {
-                if (msg.Content.StartsWith($"{Global.Preflix}echo")) { await EchoMessage(context); return; }
-                var result = await _service.ExecuteAsync(context, argPos, null, MultiMatchHandling.Best);
-
-                if (!result.IsSuccess && result.Error != CommandError.UnknownCommand)
+                if (s.Channel.Id == 592463507124125706)
                 {
-                    EmbedBuilder b = new EmbedBuilder();
-                    b.Color = Color.Red;
-                    b.Description = $"The following info is the Command error info, `{msg.Author.Username}#{msg.Author.Discriminator}` tried to use the `{msg}` Command in {msg.Channel}: \n \n **COMMAND ERROR**: ```{result.Error.Value}``` \n \n **COMMAND ERROR REASON**: ```{result.ErrorReason}```";
-                    b.Author = new EmbedAuthorBuilder();
-                    b.Author.Name = msg.Author.Username + "#" + msg.Author.Discriminator;
-                    b.Author.IconUrl = msg.Author.GetAvatarUrl();
-                    b.Footer = new EmbedFooterBuilder();
-                    b.Footer.Text = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") + " ZULU";
-                    b.Title = "Bot Command Error!";
-                    await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.DebugChanID).SendMessageAsync("", false, b.Build());
-                    await _client.GetGuild(Global.SwissBotDevGuildID).GetTextChannel(622164033902084145).SendMessageAsync("", false, b.Build());
+                    t.Stop();
+                    t.AutoReset = true;
+                    t.Enabled = true;
+                    t.Interval = 300000;
+                    t.Start();
                 }
-                await HandleCommandresult(result, msg);
+
+                var msg = s as SocketUserMessage;
+                if (msg == null) return;
+
+                var context = new SocketCommandContext(_client, msg);
+                if (Commands.giveawayinProg) { Commands.checkGiveaway(s); }
+
+                int argPos = 0;
+                if (msg.Channel.GetType() == typeof(SocketDMChannel)) { await checkKey(context); }
+                if (msg.HasCharPrefix(Global.Preflix, ref argPos))
+                {
+                    if (msg.Content.StartsWith($"{Global.Preflix}echo")) { await EchoMessage(context); return; }
+                    var result = await _service.ExecuteAsync(context, argPos, null, MultiMatchHandling.Best);
+
+                    if (!result.IsSuccess && result.Error != CommandError.UnknownCommand)
+                    {
+                        EmbedBuilder b = new EmbedBuilder();
+                        b.Color = Color.Red;
+                        b.Description = $"The following info is the Command error info, `{msg.Author.Username}#{msg.Author.Discriminator}` tried to use the `{msg}` Command in {msg.Channel}: \n \n **COMMAND ERROR**: ```{result.Error.Value}``` \n \n **COMMAND ERROR REASON**: ```{result.ErrorReason}```";
+                        b.Author = new EmbedAuthorBuilder();
+                        b.Author.Name = msg.Author.Username + "#" + msg.Author.Discriminator;
+                        b.Author.IconUrl = msg.Author.GetAvatarUrl();
+                        b.Footer = new EmbedFooterBuilder();
+                        b.Footer.Text = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") + " ZULU";
+                        b.Title = "Bot Command Error!";
+                        await _client.GetGuild(Global.SwissGuildId).GetTextChannel(Global.DebugChanID).SendMessageAsync("", false, b.Build());
+                        await _client.GetGuild(Global.SwissBotDevGuildID).GetTextChannel(622164033902084145).SendMessageAsync("", false, b.Build());
+                    }
+                    await HandleCommandresult(result, msg);
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex);
             }
         }
-
+        private async Task checkKey(SocketCommandContext context)
+        {
+            if(context.Message.Content == "cr4ck3d_th3_c0d3")
+            {
+                await context.Client.GetGuild(Global.SwissGuildId).GetTextChannel(622150290673500200).SendMessageAsync($"User {context.Message.Author.Mention} has cracked the code!");
+                await context.Channel.SendMessageAsync("Congrats! you cracked the code");
+            }
+        }
         private async void DCRS(object sender, ElapsedEventArgs e)
         {
             var r = new Random();
