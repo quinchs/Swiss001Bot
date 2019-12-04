@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using static SwissBot.Global;
 
@@ -53,19 +54,178 @@ namespace SwissBot.Modules
                     Description = "These are the following commands for SwissBot!\n\n" +
                // $"**{Global.Preflix}**modify**\n**Parameters** - ```{Global.Preflix}modify (ITEMNAME) (NEWVALUE)```\n use `{Global.Preflix}modify list` to view the `.config` file\n\n" +
                 //$"**{Global.Preflix}welcome**\n Use this command to test the welcome message\n\n" +
-                $"`{Global.Preflix}butter`\n**Parameters** - ```{Global.Preflix}butter (LINK)```\n use this command to get or submit butter landings!\n\n" +
+                $"```{Global.Preflix}butter```\n**Parameters** - `{Global.Preflix}butter <link>`\n use this command to get or submit butter landings!\n\n" +
                 //$"**{Global.Preflix}commandlogs**\n**Parameters** - ```{Global.Preflix}commandlogs (LOG_NAME)```\n use `{Global.Preflix}commandlogs list` to view all command logs\n\n" +
                 //$"**{Global.Preflix}messagelogs**\n**Parameters** - ```{Global.Preflix}messagelogs (LOG_NAME)```\n use `{Global.Preflix}messagelogs list` to view all message logs\n\n" +
-                $"`{Global.Preflix}help`\n View this help message :D",
+                $"```{Global.Preflix}help```\n View this help message :D" +
+                $"```{Global.Preflix}ping```\nGet the bots ping" +
+                $"```{Global.Preflix}welcome```\nTest the welcome message",
                     Footer = new EmbedFooterBuilder()
                     {
                         IconUrl = Context.Client.CurrentUser.GetAvatarUrl(),
                         Text = "Help Autogen"
                     },
+                    ThumbnailUrl = Global.WelcomeMessageURL
                 };
                 await Context.Channel.SendMessageAsync("", false, eb.Build());
             }
         }
+        [Command("backup")]
+        public async Task backup(ulong id)
+        {
+            var r = Context.Guild.GetUser(Context.Message.Author.Id).Roles;
+            var adminrolepos = Context.Guild.Roles.FirstOrDefault(x => x.Id == Global.ModeratorRoleID).Position;
+            var rolepos = r.FirstOrDefault(x => x.Position >= adminrolepos);
+            if (rolepos != null || r.Contains(Context.Guild.Roles.FirstOrDefault(x => x.Id == 622156934778454016)))
+            {
+                SocketGuild guild = Context.Client.GetGuild(id);
+                JsonGuildObj obj = new JsonGuildObj()
+                {
+                    AFKChannel = new VoiceChannels()
+                    {
+                        Name = guild.AFKChannel.Name,
+                        Bitrate = guild.AFKChannel.Bitrate,
+                        CategoryName = guild.AFKChannel.Category.Name,
+                        PermissionOverwrites = guild.AFKChannel.PermissionOverwrites,
+                        Position = guild.AFKChannel.Position,
+                        UserLimit = guild.AFKChannel.UserLimit
+                    },
+                    SocketCategory = await GetCategoryChannel(guild.CategoryChannels),
+                    AFKTimeout = guild.AFKTimeout,
+                    textChannels = await GetTextChannels(guild.TextChannels),
+                    VoiceChannels = await GetVoiceChannels(guild.VoiceChannels),
+                    DefaultChannel = new TextChannels()
+                    {
+                        Name = guild.DefaultChannel.Name,
+                        Position = guild.DefaultChannel.Position,
+                        PermissionOverwrites = guild.DefaultChannel.PermissionOverwrites,
+                        CategoryName = guild.DefaultChannel.Category.Name,
+                        IsNsfw = guild.DefaultChannel.IsNsfw,
+                        SlowModeInterval = guild.DefaultChannel.SlowModeInterval,
+                        Topic = guild.DefaultChannel.Topic
+                    },
+                    IconURL = guild.IconUrl,
+                    name = guild.Name,
+                    roles = await GetRoles(guild.Roles)
+                    
+                };
+                Thread t = new Thread(() => GenNerGuild(obj, guild));
+                t.Start();
+            }
+        }
+        public async void GenNerGuild(JsonGuildObj obj, SocketGuild guild)
+        {
+            try
+            {
+                var newguild = await Context.Client.CreateGuildAsync(obj.name, Context.Client.VoiceRegions.FirstOrDefault(n => n.Name == "US East"));
+                //var newguild = Client.Guilds.ToArray()[3];
+                await Context.Channel.SendMessageAsync($"Created backup guild: {await newguild.GetTextChannelsAsync().Result.First().CreateInviteAsync()}");
+
+                Roles[] rz = new Roles[obj.roles.Count];
+                foreach (var item in obj.roles) rz[item.Position] = item;
+                foreach (var role in rz.Reverse())
+                {
+                    var rl = await newguild.CreateRoleAsync(role.Name, role.Permissions, role.Color, role.IsHoisted);
+                    await rl.ModifyAsync(x =>
+                    {
+                        x.Mentionable = role.IsMentionable;
+                        x.Position = obj.roles.FirstOrDefault(x2 => x2.Name == role.Name).Position;
+                    });
+                    Thread.Sleep(1000);
+                }
+                //foreach (var role in newguild.Roles)
+                //{
+                //    await role.ModifyAsync(x =>
+                //    {
+                //        x.Position = 
+                //    });
+                //}
+                foreach (var cat in obj.SocketCategory)
+                {
+                    var d = await newguild.CreateCategoryChannelAsync(cat.Name);
+
+                    foreach (var perms in cat.PermissionOverwrites)
+                    {
+                        var type = perms.TargetType;
+                        if (perms.TargetId != guild.Id)
+                        {
+                            if (type == PermissionTarget.Role)
+                            {
+                                var role = guild.GetRole(perms.TargetId);
+                                if (role != null)
+                                    await d.AddPermissionOverwriteAsync(newguild.Roles.FirstOrDefault(x => x.Name == role.Name), perms.Permissions);
+                            }
+                            if (type == PermissionTarget.User)
+                            {
+                                await d.AddPermissionOverwriteAsync(newguild.Roles.FirstOrDefault(x => x.Name == guild.GetRole(perms.TargetId).Name), perms.Permissions);
+                            }
+                        }
+                    }
+                }
+                foreach (SocketGuildChannel cats in Client.GetGuild(newguild.Id).CategoryChannels)
+                {
+                    await cats.ModifyAsync(x =>
+                    {
+                        x.Position = obj.SocketCategory.FirstOrDefault(z => z.Name == cats.Name).Position;
+                    });
+                }
+                foreach (var chan in obj.textChannels)
+                {
+                    var c = await newguild.CreateTextChannelAsync(chan.Name, x =>
+                    {
+                        x.IsNsfw = chan.IsNsfw;
+                        x.SlowModeInterval = chan.SlowModeInterval;
+                        x.Topic = chan.Topic;
+                        x.CategoryId = newguild.GetCategoryChannelsAsync().Result.FirstOrDefault(x2 => x2.Name == chan.CategoryName).Id;
+                    });
+                }
+                foreach (var chan in obj.VoiceChannels)
+                {
+                    var c = await newguild.CreateVoiceChannelAsync(chan.Name, x =>
+                    {
+                        x.Bitrate = chan.Bitrate;
+                        x.UserLimit = chan.UserLimit;
+                        x.CategoryId = newguild.GetCategoryChannelsAsync().Result.FirstOrDefault(x2 => x2.Name == chan.CategoryName).Id;
+                    });
+                }
+                foreach (var chan in newguild.GetTextChannelsAsync().Result)
+                {
+                    await chan.ModifyAsync(x => x.Position = obj.textChannels.FirstOrDefault(y => y.Name == chan.Name).Position);
+                }
+                foreach (var chan in newguild.GetVoiceChannelsAsync().Result)
+                {
+                    await chan.ModifyAsync(x => x.Position = obj.VoiceChannels.FirstOrDefault(y => y.Name == chan.Name).Position);
+                }
+                using (var client = new WebClient())
+                {
+                    client.DownloadFile(obj.IconURL, "Guildicon.jpeg");
+                }
+                await newguild.ModifyAsync(x =>
+                {
+                    x.AfkChannel = Client.GetGuild(newguild.Id).VoiceChannels.FirstOrDefault(x2 => x2.Name == obj.AFKChannel.Name);
+                    x.AfkTimeout = obj.AFKTimeout;
+                    x.Icon = new Optional<Image?>(new Image($"{Environment.CurrentDirectory}\\Guildicon.jpeg"));
+                    x.VerificationLevel = VerificationLevel.Low;
+                });
+            }
+            catch (Exception ex)
+            {
+                Global.SendExeption(ex);
+                Console.WriteLine(ex);
+            }
+        }
+        [Command("sendjson")]
+        public async Task sendjson()
+        {
+            await Context.Channel.SendMessageAsync($"Sent to neoney lolz, Response was this gamer\n```{await Global.SendJsontoNeoney()}```");
+        }
+        [Command("listbackups")]
+        public async Task getbacks()
+        {
+            await Context.Channel.SendMessageAsync($"did a get thingie lolz, Response was this gamer\n```{await Global.getNeoneyStuff()}```");
+
+        }
+
         [Command("butter")]
         public async Task butter(string url)
         {
@@ -131,12 +291,9 @@ namespace SwissBot.Modules
             if (rolepos != null || r.Contains(Context.Guild.Roles.FirstOrDefault(x=>x.Id == 622156934778454016)))
             {
                 var messages = await this.Context.Channel.GetMessagesAsync((int)amount + 1).FlattenAsync();
-                foreach (var message in messages)
-                {
-                    await message.DeleteAsync();
-                }
-                const int delay = 5000;
-                var m = await this.ReplyAsync($"Purge completed. _This message will be deleted in {delay / 1000} seconds._");
+                await ((ITextChannel)Context.Channel).DeleteMessagesAsync(messages);
+                const int delay = 2000;
+                var m = await this.ReplyAsync($"Purge completed!");
                 await Task.Delay(delay);
                 await m.DeleteAsync();
             }
@@ -162,60 +319,107 @@ namespace SwissBot.Modules
                 }
             }
         }
+        [Command("ping")]
+        public async Task ping()
+        {
+            await Context.Channel.SendMessageAsync($"Pong: {Context.Client.Latency}ms!");
+        }
         [Command("QL")]
-        public async Task muteusers(string rep)
+        public async Task ql(string rep)
         {
             if(rep == "good" || rep == "bad")
             {
                 await Context.Channel.SendMessageAsync($"ive been a {rep} boi, input noted down for the future");
             }
         }
-        [Command("jsonfy")]
-        public async Task muteusers(ulong id)
+        public static async Task<JsonGuildObj> GetGuildObj()
         {
-            var r = Context.Guild.GetUser(Context.Message.Author.Id).Roles;
-            var adminrolepos = Context.Guild.Roles.FirstOrDefault(x => x.Id == Global.ModeratorRoleID).Position;
-            var rolepos = r.FirstOrDefault(x => x.Position >= adminrolepos);
-            if (rolepos != null || r.Contains(Context.Guild.Roles.FirstOrDefault(x => x.Id == 622156934778454016)))
+            var guild = Client.GetGuild(Global.SwissGuildId);
+
+            JsonGuildObj obj = new JsonGuildObj()
             {
-                var guild = Context.Client.GetGuild(id);
-
-                JsonGuildObj obj = new JsonGuildObj()
+                AFKChannel = new VoiceChannels()
                 {
-                    AFKChannel = new VoiceChannels()
-                    {
-                        Name = guild.AFKChannel.Name,
-                        Bitrate = guild.AFKChannel.Bitrate,
-                        CategoryName = guild.AFKChannel.Category.Name,
-                        PermissionOverwrites = guild.AFKChannel.PermissionOverwrites,
-                        Position = guild.AFKChannel.Position,
-                        UserLimit = guild.AFKChannel.UserLimit
-                    },
-                    SocketCategory = await GetCategoryChannel(guild.CategoryChannels),
-                    AFKTimeout = guild.AFKTimeout,
-                    textChannels = await GetTextChannels(guild.TextChannels),
-                    VoiceChannels = await GetVoiceChannels(guild.VoiceChannels),
-                    DefaultChannel = new TextChannels()
-                    {
-                        Name = guild.DefaultChannel.Name,
-                        Position = guild.DefaultChannel.Position,
-                        PermissionOverwrites = guild.DefaultChannel.PermissionOverwrites,
-                        CategoryName = guild.DefaultChannel.Category.Name,
-                        IsNsfw = guild.DefaultChannel.IsNsfw,
-                        SlowModeInterval = guild.DefaultChannel.SlowModeInterval,
-                        Topic = guild.DefaultChannel.Topic
-                    },
-                    IconURL = guild.IconUrl,
-                    name = guild.Name,
-                    roles = await GetRoles(guild.Roles)
-                };
-                string json = JsonConvert.SerializeObject(obj, Formatting.Indented);
-                File.Create($"{Environment.CurrentDirectory}//Data//{id}.json").Close();
-                File.WriteAllText($"{Environment.CurrentDirectory}//Data//{id}.json", json);
-                await Context.Channel.SendFileAsync($"{Environment.CurrentDirectory}//Data//{id}.json", $"Here is the Json object of {guild.Name}!");
-
+                    Name = guild.AFKChannel.Name,
+                    Bitrate = guild.AFKChannel.Bitrate,
+                    CategoryName = guild.AFKChannel.Category.Name,
+                    PermissionOverwrites = guild.AFKChannel.PermissionOverwrites,
+                    Position = guild.AFKChannel.Position,
+                    UserLimit = guild.AFKChannel.UserLimit
+                },
+                SocketCategory = await GetCategoryChannel(guild.CategoryChannels),
+                AFKTimeout = guild.AFKTimeout,
+                textChannels = await GetTextChannels(guild.TextChannels),
+                VoiceChannels = await GetVoiceChannels(guild.VoiceChannels),
+                DefaultChannel = new TextChannels()
+                {
+                    Name = guild.DefaultChannel.Name,
+                    Position = guild.DefaultChannel.Position,
+                    PermissionOverwrites = guild.DefaultChannel.PermissionOverwrites,
+                    CategoryName = guild.DefaultChannel.Category.Name,
+                    IsNsfw = guild.DefaultChannel.IsNsfw,
+                    SlowModeInterval = guild.DefaultChannel.SlowModeInterval,
+                    Topic = guild.DefaultChannel.Topic
+                },
+                IconURL = guild.IconUrl,
+                name = guild.Name,
+                roles = await GetRoles(guild.Roles)
+            };
+            return obj;
+        }
+        public static JsonGuildObj guildobj { get; set; }
+        [Command("jsonfy")]
+        public async Task jsonfy(ulong id)
+        {
+            IReadOnlyCollection<SocketRole> r;
+            int adminrolepos;
+            SocketRole rolepos;
+            if (Context.Guild.Id != Global.SwissBotDevGuildID)
+            {
+                r = Context.Guild.GetUser(Context.Message.Author.Id).Roles;
+                adminrolepos = Context.Guild.Roles.First(x => x.Id == Global.ModeratorRoleID).Position;
+                rolepos = r.FirstOrDefault(x => x.Position >= adminrolepos);
+                if (rolepos == null || !r.Contains(Context.Guild.Roles.FirstOrDefault(x => x.Id == 622156934778454016)))
+                {
+                    return;
+                }
             }
+            var guild = Context.Client.GetGuild(id);
 
+            JsonGuildObj obj = new JsonGuildObj()
+            {
+                AFKChannel = new VoiceChannels()
+                {
+                    Name = guild.AFKChannel.Name,
+                    Bitrate = guild.AFKChannel.Bitrate,
+                    CategoryName = guild.AFKChannel.Category.Name,
+                    PermissionOverwrites = guild.AFKChannel.PermissionOverwrites,
+                    Position = guild.AFKChannel.Position,
+                    UserLimit = guild.AFKChannel.UserLimit
+                },
+                SocketCategory = await GetCategoryChannel(guild.CategoryChannels),
+                AFKTimeout = guild.AFKTimeout,
+                textChannels = await GetTextChannels(guild.TextChannels),
+                VoiceChannels = await GetVoiceChannels(guild.VoiceChannels),
+                DefaultChannel = new TextChannels()
+                {
+                    Name = guild.DefaultChannel.Name,
+                    Position = guild.DefaultChannel.Position,
+                    PermissionOverwrites = guild.DefaultChannel.PermissionOverwrites,
+                    CategoryName = guild.DefaultChannel.Category.Name,
+                    IsNsfw = guild.DefaultChannel.IsNsfw,
+                    SlowModeInterval = guild.DefaultChannel.SlowModeInterval,
+                    Topic = guild.DefaultChannel.Topic
+                },
+                IconURL = guild.IconUrl,
+                name = guild.Name,
+                roles = await GetRoles(guild.Roles)
+            };
+            string json = JsonConvert.SerializeObject(obj, Formatting.Indented);
+            File.Create($"{Environment.CurrentDirectory}//Data//{id}.json").Close();
+            File.WriteAllText($"{Environment.CurrentDirectory}//Data//{id}.json", json);
+            await Context.Channel.SendFileAsync($"{Environment.CurrentDirectory}//Data//{id}.json", $"Here is the Json object of {guild.Name}!");
+            guildobj = obj;
         }
         public struct JsonGuildObj
         {
@@ -230,7 +434,7 @@ namespace SwissBot.Modules
             public List<VoiceChannels> VoiceChannels { get; set; }
         }
         
-        public async Task<List<Roles>> GetRoles(IReadOnlyCollection<SocketRole> roles)
+        public static async Task<List<Roles>> GetRoles(IReadOnlyCollection<SocketRole> roles)
         {
             List<Roles> l = new List<Roles>();
             foreach(var role in roles)
@@ -250,7 +454,7 @@ namespace SwissBot.Modules
             }
             return l;
         }
-        public async Task<List<VoiceChannels>> GetVoiceChannels(IReadOnlyCollection<SocketVoiceChannel> VoiceChannels)
+        public static async Task<List<VoiceChannels>> GetVoiceChannels(IReadOnlyCollection<SocketVoiceChannel> VoiceChannels)
         {
             List<VoiceChannels> l = new List<VoiceChannels>();
             foreach (var chan in VoiceChannels)
@@ -269,14 +473,13 @@ namespace SwissBot.Modules
             }
             return l;
         }
-        public async Task<List<CategoryChannel>> GetCategoryChannel(IReadOnlyCollection<SocketCategoryChannel> CategoryChannel)
+        public static async Task<List<CategoryChannel>> GetCategoryChannel(IReadOnlyCollection<SocketCategoryChannel> CategoryChannel)
         {
             List<CategoryChannel> l = new List<CategoryChannel>();
             foreach (var chan in CategoryChannel)
             {
                 CategoryChannel c = new CategoryChannel()
                 {
-                    
                     Name = chan.Name,
                     PermissionOverwrites = chan.PermissionOverwrites,
                     Position = chan.Position,
@@ -289,11 +492,11 @@ namespace SwissBot.Modules
             }
             return l;
         }
-        public async Task<List<TextChannels>> GetTextChannels(IReadOnlyCollection<SocketTextChannel> TextChannels)
+        public static async Task<List<TextChannels>> GetTextChannels(IReadOnlyCollection<SocketTextChannel> TextChannels)
         {
             List<TextChannels> l = new List<TextChannels>();
             foreach(var chan in TextChannels)
-            {
+            {   
                 try
                 {
                     var d = chan.PermissionOverwrites;
@@ -787,26 +990,23 @@ namespace SwissBot.Modules
         [Command("welcome")]
         public async Task welcome()
         {
-            if(Context.Guild.GetCategoryChannel(Global.TestingCat).Channels.Contains(Context.Guild.GetTextChannel(Context.Channel.Id)))
-            {
-                var arg = Context.Guild.GetUser(Context.Message.Author.Id);
-                string welcomeMessage = CommandHandler.WelcomeMessageBuilder(Global.WelcomeMessage, arg);
+            var arg = Context.Guild.GetUser(Context.Message.Author.Id);
+            string welcomeMessage = CommandHandler.WelcomeMessageBuilder(Global.WelcomeMessage, arg);
 
-                EmbedBuilder eb = new EmbedBuilder()
+            EmbedBuilder eb = new EmbedBuilder()
+            {
+                Title = $"***Welcome to Swiss001's Discord server!***",
+                Footer = new EmbedFooterBuilder()
                 {
-                    Title = $"***Welcome to Swiss001's Discord server!***",
-                    Footer = new EmbedFooterBuilder()
-                    {
-                        IconUrl = arg.GetAvatarUrl(),
-                        Text = $"{arg.Username}#{arg.Discriminator}"
-                    },
-                    Description = welcomeMessage,
-                    ThumbnailUrl = Global.WelcomeMessageURL,
-                    Color = Color.Green
-                };
-                await Context.Channel.SendMessageAsync("", false, eb.Build());
-                Global.ConsoleLog($"WelcomeMessage for {arg.Username}#{arg.Discriminator}", ConsoleColor.Blue);
-            }
+                    IconUrl = arg.GetAvatarUrl(),
+                    Text = $"{arg.Username}#{arg.Discriminator}"
+                },
+                Description = welcomeMessage,
+                ThumbnailUrl = Global.WelcomeMessageURL,
+                Color = Color.Green
+            };
+            await Context.Channel.SendMessageAsync("", false, eb.Build());
+            Global.ConsoleLog($"WelcomeMessage for {arg.Username}#{arg.Discriminator}", ConsoleColor.Blue);
         }
         [Command("commandlogs")]
         public async Task logs(string name)
@@ -953,8 +1153,9 @@ namespace SwissBot.Modules
             }
         }
         [Command("modify")]
-        public async Task modify(string configItem, string value)
+        public async Task modify(string configItem, params string[] input)
         {
+            var value = string.Join(" ", input);
             string newvalue = value.Replace("\\", " ");
             if (Context.Guild.Id == Global.SwissBotDevGuildID)//allow full modify
             {

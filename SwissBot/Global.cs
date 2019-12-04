@@ -8,6 +8,8 @@ using Newtonsoft.Json;
 using System.IO;
 using Discord.Rest;
 using Discord;
+using System.Net.Http;
+using System.Net;
 
 namespace SwissBot
 {
@@ -52,6 +54,7 @@ namespace SwissBot
         public static ulong giveawayCreatorChanId { get; set; }
         public static ulong giveawayChanID { get; set; }
         public static ulong BotAiChanID { get; set; }
+        public static string ApiKey { get; set; }
         internal static Dictionary<string, string> jsonItemsList { get; private set; }
         internal static Dictionary<string, string> JsonItemsListDevOps { get; private set; }
         public struct GiveAway
@@ -136,6 +139,7 @@ namespace SwissBot
             TestingCat = data.TestingCatigoryID;
             ModeratorRoleID = data.ModeratorRoleID;
             MemberRoleID = data.MemberRoleID;
+            ApiKey = data.ApiKey;
             UnverifiedRoleID = data.UnverifiedRoleID;
             VerificationChanID = data.VerificationChanID;
             VerificationLogChanID = data.VerificationLogChanID;
@@ -204,6 +208,7 @@ namespace SwissBot
             public ulong StatsTotChanID { get; set; }
             public ulong giveawayChanID { get; set; }
             public ulong giveawayCreatorChanId { get; set; }
+            public string ApiKey { get; set; }
         }
         public static void ConsoleLog(string ConsoleMessage, ConsoleColor FColor = ConsoleColor.Green, ConsoleColor BColor = ConsoleColor.Black)
         {
@@ -232,6 +237,69 @@ namespace SwissBot
             public Emoji checkmark { get; set; }
             public Emoji Xmark { get; set; }
             public ulong SubmitterID { get; set; }
+        }
+        public struct ApiData
+        {
+            public string apiKey { get; set; }
+            public Modules.Commands.JsonGuildObj JsonGuildObj { get; set; }
+        }
+        public static async Task<string> SendJsontoNeoney()
+        {
+            const string url = "https://api.neoney.xyz/swiss/addBackup";
+
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url); request.KeepAlive = false;
+            request.ProtocolVersion = HttpVersion.Version10;
+            request.Method = "POST";
+
+            ApiData data = new ApiData()
+            {
+                apiKey = ApiKey,
+                JsonGuildObj = await Modules.Commands.GetGuildObj()
+            };
+            
+            
+            // turn our request string into a byte stream
+            byte[] postBytes = Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(data));
+
+            // this is important - make sure you specify type this way
+            request.ContentType = "application/json; charset=UTF-8";
+            request.Accept = "application/json";
+            request.ContentLength = postBytes.Length;
+            Stream requestStream = request.GetRequestStream();
+
+            // now send it
+            requestStream.Write(postBytes, 0, postBytes.Length);
+            requestStream.Close();
+
+            // grab te response and print it out to the console along with the status code
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            string result;
+            using (StreamReader rdr = new StreamReader(response.GetResponseStream()))
+            {
+                result = rdr.ReadToEnd();
+            }
+            return result;
+        }
+        public static async Task<string> getNeoneyStuff()
+        {
+            const string url = "https://api.neoney.xyz/swiss/listbackups";
+
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url); request.KeepAlive = false;
+            request.ProtocolVersion = HttpVersion.Version10;
+            request.Method = "GET";
+            request.Headers.Add("authorization", "Bearer AS89d8sjscnjZ)09=0-_+9aks309JjncaA014389");
+            // turn our request string into a byte stream
+            
+            // this is important - make sure you specify type this way
+           
+            // grab te response and print it out to the console along with the status code
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            string result;
+            using (StreamReader rdr = new StreamReader(response.GetResponseStream()))
+            {
+                result = rdr.ReadToEnd();
+            }
+            return result;
         }
     }
 }
