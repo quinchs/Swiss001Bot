@@ -20,6 +20,7 @@ namespace SwissBot
         private static string cMSGPath = $"{Environment.CurrentDirectory}\\Data\\CashedMSG.MSG";
         private static string ConfigSettingsPath = $"{Environment.CurrentDirectory}\\Data\\ConfigPerms.json";
         public static string aiResponsePath = $"{Environment.CurrentDirectory}\\Data\\Responses.AI";
+        public static string LinksDirpath = $"{Environment.CurrentDirectory}\\LinkLogs";
         public static string Status { get; set; }
         public static string Token { get; set; }
         public static DiscordSocketClient Client { get; set; }
@@ -51,9 +52,16 @@ namespace SwissBot
         public static ulong VerificationLogChanID { get; set; }
         public static ulong SubmissionsLogChanID { get; set; }
         public static ulong MilestonechanID { get; set; }
+        public static int AutoSlowmodeTrigger { get; set; }
+        public static bool AutoSlowmodeToggle { get; set; }
         public static ulong giveawayCreatorChanId { get; set; }
         public static ulong giveawayChanID { get; set; }
         public static ulong BotAiChanID { get; set; }
+        public static Dictionary<string, List<LogItem>> linkLogs { get; set; }
+        public static Dictionary<string, List<LogItem>> messageLogs { get; set; }
+        public static Dictionary<string, List<LogItem>> commandLogs { get; set; }
+
+
         public static string ApiKey { get; set; }
         internal static Dictionary<string, string> jsonItemsList { get; private set; }
         internal static Dictionary<string, string> JsonItemsListDevOps { get; private set; }
@@ -66,6 +74,14 @@ namespace SwissBot
             public int numWinners { get; set; }
             public RestUserMessage giveawaymsg { get; set; }
             public GiveawayGuildObj giveawayguild { get; set; }
+        }
+        public class LogItem
+        {
+            public string username { get; set; }
+            public string id { get; set; }
+            public string date { get; set; }
+            public string channel { get; set; }
+            public string message { get; set; }
         }
         public class GiveawayGuildObj
         {
@@ -139,7 +155,9 @@ namespace SwissBot
             TestingCat = data.TestingCatigoryID;
             ModeratorRoleID = data.ModeratorRoleID;
             MemberRoleID = data.MemberRoleID;
+            AutoSlowmodeTrigger = data.AutoSlowmodeTrigger;
             ApiKey = data.ApiKey;
+            AutoSlowmodeToggle = data.AutoSlowmodeToggle;
             UnverifiedRoleID = data.UnverifiedRoleID;
             VerificationChanID = data.VerificationChanID;
             VerificationLogChanID = data.VerificationLogChanID;
@@ -204,11 +222,13 @@ namespace SwissBot
             public ulong VerificationChanID { get; set; }
             public ulong SubmissionsLogChanID { get; set; }
             public ulong MilestonechanID { get; set; }
+            public bool AutoSlowmodeToggle { get; set; }
             public ulong BotAiChanID { get; set; }
             public ulong StatsTotChanID { get; set; }
             public ulong giveawayChanID { get; set; }
             public ulong giveawayCreatorChanId { get; set; }
             public string ApiKey { get; set; }
+            public int AutoSlowmodeTrigger { get; set; }
         }
         public static void ConsoleLog(string ConsoleMessage, ConsoleColor FColor = ConsoleColor.Green, ConsoleColor BColor = ConsoleColor.Black)
         {

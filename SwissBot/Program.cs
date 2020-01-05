@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,6 +31,7 @@ namespace SwissBot
         private DiscordSocketClient _client;
         private CommandService _commands;
         private CommandHandler _handler;
+        private IServiceCollection _services;
 
         public async Task StartAsync()
         {
@@ -39,16 +41,19 @@ namespace SwissBot
 
             Global.ReadConfig();
 
+            //_services = new ServiceCollection().AddSingleton(new AudioService());
+
             _client = new DiscordSocketClient(new DiscordSocketConfig
             {
                 LogLevel = LogSeverity.Debug,
                 AlwaysDownloadUsers = true,
+                
                 //MessageCacheSize = 99999,
             });
             
-
             _client.Log += Log;
-            
+
+           
             await _client.LoginAsync(TokenType.Bot, Global.Token);
 
             await _client.StartAsync();
